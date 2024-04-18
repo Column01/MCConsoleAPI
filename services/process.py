@@ -52,11 +52,22 @@ class Process:
 
         return java_cmd
 
-    async def server_input(self, data: str):
+    async def server_input(self, data: str) -> tuple[bool, str]:
         if self.protocol:
             print(f"Sending input to server STDIN: {data}")
+            last_line = self.scrollback_buffer[-1]
             await self.protocol.write_process(data)
-            
+
+            # Wait for the last line in the scrollback buffer to change
+            while self.scrollback_buffer[-1] == last_line:
+                await asyncio.sleep(0.05)
+            # Check the last line of output to see if it has an unknown command message
+            line = self.scrollback_buffer[-1]
+            if "unknown command" in line.lower():
+                return (False, line)
+            else:
+                return (True, line)
+        return (False, "Server protocol is not present... has the server been started?")
 
     async def proc_closed(self, exit_code):
         print(f"SERVER PROC CLOSED! {exit_code}")

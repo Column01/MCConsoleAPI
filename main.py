@@ -7,7 +7,7 @@ import time
 from typing import Union
 
 import uvicorn
-from fastapi import APIRouter, FastAPI
+from fastapi import APIRouter, FastAPI, Response, status
 from fastapi.responses import StreamingResponse
 
 from config import JsonConfig
@@ -50,16 +50,13 @@ class MCConsoleAPI:
         """ Gets n lines from the server output and returns it """
         return StreamingResponse(self.serve_console_lines(lines))
 
-    async def console_input(self, command: str) -> dict:
-        await self.process.server_input(command)
-        # Wait for a short period of time to allow the process to generate output
-        await asyncio.sleep(0.1)
-        # Check the last line of the scrollback buffer to see if it ran correctly
-        last_line = self.process.scrollback_buffer[-1]
-        if "Unknown command" in last_line:
-            return {"message": "failure", "reason": last_line}
+    async def console_input(self, command: str, response: Response) -> dict:
+        success, line = await self.process.server_input(command)
+        if success:
+            return {"message": "success", "line": line}
         else:
-            return {"message": "success"}
+            response.status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+            return {"message": f"Error when processing command: {command}. Is it a valid command?", "line": line}
 
     async def server_stopped(self, exit_code):
         print(f"Minecraft server has stopped with exit code: {exit_code}")
