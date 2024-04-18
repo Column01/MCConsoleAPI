@@ -16,6 +16,8 @@ class Process:
         self.exit_future = exit_future
         self.loop = asyncio.get_event_loop()
 
+        self.running = False
+
     async def start_server(self):
         # Get the java command
         java_cmd = self.build_java_command()
@@ -33,6 +35,8 @@ class Process:
             stderr=asyncio.subprocess.PIPE
         )
 
+        self.running = True
+
     def build_java_command(self) -> list:
         """ Builds a java command from the config """
         java_cmd = []
@@ -43,10 +47,14 @@ class Process:
         if mc_config.get("jvm_args") is not None:
             java_cmd.extend(mc_config["jvm_args"])
 
+        # Unsupported terminal
+        java_cmd.append("-Djline.terminal=jline.UnsupportedTerminal")
+
         # Add -jar and jar path
         java_cmd.append("-jar")
         jar_path = find_jar(mc_config["server_jar"])
         java_cmd.append(jar_path)
+
         # No GUI
         java_cmd.append("nogui")
 
@@ -71,6 +79,7 @@ class Process:
 
     async def proc_closed(self, exit_code):
         print(f"SERVER PROC CLOSED! {exit_code}")
+        self.running = False
         if self.exit_future is not None:
             await self.exit_future(exit_code)
 

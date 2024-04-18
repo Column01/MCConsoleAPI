@@ -44,7 +44,21 @@ class MCConsoleAPI:
         # Setup the webserver stuff and start it
         server_config = uvicorn.Config(self.app, host=self.config["host"], port=self.config["port"], log_level=self.config["log_level"])
         server = uvicorn.Server(server_config)
-        await server.serve()
+        try:
+            await server.serve()
+        except (KeyboardInterrupt, RuntimeError, asyncio.CancelledError):
+            print("Keyboard interrupt or other error received! Stopping minecraft server gracefully...")
+            if self.process.running:
+                # Send the server stop command
+                success, line = await self.process.server_input("stop")
+                if success:
+                    print("Successfully stopping server. Waiting for process to close...")
+                
+                # Wait for the process to stop
+                while self.process.running:
+                    await asyncio.sleep(0.1)
+
+            exit()
 
     async def console_output(self, lines: Union[int, None] = None) -> StreamingResponse:
         """ Gets n lines from the server output and returns it """
@@ -95,4 +109,6 @@ if __name__ == "__main__":
 
     parser.add_argument('-p', "--path", metavar="PATH", type=str, default=".", required=False, help="The path to your minecraft server")
     args = parser.parse_args()
-    asyncio.run(main(args))
+    loop = asyncio.get_event_loop()
+    main_task = asyncio.ensure_future(main(args))
+    loop.run_until_complete(main_task)
