@@ -38,9 +38,6 @@ class MCConsoleAPI:
         """ This is the entry point to the entire script, this is run to start everything """
         # Start the minecraft server
         await self.process.start_server()
-        print("Minecraft Server has been started")
-
-        print("Starting webserver")
         # Setup the webserver stuff and start it
         server_config = uvicorn.Config(self.app, host=self.config["host"], port=self.config["port"], log_level=self.config["log_level"])
         server = uvicorn.Server(server_config)
@@ -52,12 +49,11 @@ class MCConsoleAPI:
                 # Send the server stop command
                 success, line = await self.process.server_input("stop")
                 if success:
-                    print("Successfully stopping server. Waiting for process to close...")
+                    print("Successfully triggered server stop. Waiting for process to close...")
                 
                 # Wait for the process to stop
                 while self.process.running:
                     await asyncio.sleep(0.1)
-
             exit()
 
     async def console_output(self, lines: Union[int, None] = None) -> StreamingResponse:

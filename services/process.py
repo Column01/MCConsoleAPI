@@ -23,6 +23,7 @@ class Process:
         java_cmd = self.build_java_command()
         # Build the process protocol
         self.protocol = ProcessProtocol(self.proc_closed)
+        self.protocol.register_console_consumer(self.console_output)
         self.scrollback_buffer = self.protocol.scrollback_buffer
 
         print(f"Starting server: {' '.join(java_cmd)}")
@@ -63,18 +64,13 @@ class Process:
     async def server_input(self, data: str) -> tuple[bool, str]:
         if self.protocol:
             print(f"Sending input to server STDIN: {data}")
-            last_line = self.scrollback_buffer[-1]
+            future = self.loop.create_future()
+            self.protocol.register_console_consumer(future, temp=True)
             await self.protocol.write_process(data)
+            await future
+            line = future.result()
+            return ('unknown command' not in line.lower(), line)
 
-            # Wait for the last line in the scrollback buffer to change
-            while self.scrollback_buffer[-1] == last_line:
-                await asyncio.sleep(0.05)
-            # Check the last line of output to see if it has an unknown command message
-            line = self.scrollback_buffer[-1]
-            if "unknown command" in line.lower():
-                return (False, line)
-            else:
-                return (True, line)
         return (False, "Server protocol is not present... has the server been started?")
 
     async def proc_closed(self, exit_code):
@@ -82,6 +78,10 @@ class Process:
         self.running = False
         if self.exit_future is not None:
             await self.exit_future(exit_code)
+    
+    async def console_output(self, output: str):
+        """ Callback used to handle output from the server console """
+        print(output)
 
 
 class ProcessProtocol(SubprocessProtocol):
@@ -92,6 +92,8 @@ class ProcessProtocol(SubprocessProtocol):
 
         self.loop = asyncio.get_event_loop()
         self.scrollback_buffer = LimitedList(maxlen=1000)
+        self._consumers = []
+        self._temp_consumers = []
 
     def connection_made(self, transport: transports.BaseTransport):
         print("Connection with process established")
@@ -105,14 +107,50 @@ class ProcessProtocol(SubprocessProtocol):
     def pipe_data_received(self, fd: int, data: bytes):
         # Decode the data from the process and store it
         message = data.decode().strip()
-        print(message)
         self.scrollback_buffer.append(message)
 
+        # Forward console output to all consumers
+        for consumer in self._consumers:
+            if asyncio.isfuture(consumer):
+                consumer.set_result(message)
+            else:
+                self.loop.create_task(consumer(message))
+
+        # Temporary consumers, get removed after one usage. 
+        # Useful for some things like checking the result of a command execution
+        for i in range(len(self._temp_consumers)):
+            consumer = self._temp_consumers.pop()
+            if asyncio.isfuture(consumer):
+                consumer.set_result(message)
+            else:
+                self.loop.create_task(consumer(message))
+
     def process_exited(self):
+        # Called when the java process exits
         code = self.transport.get_returncode()
         self.loop.create_task(self.exit_future(code))
 
     async def write_process(self, data: typing.Union[bytes, str]):
+        # Write data to the process STDIN
         if isinstance(data, str):
             data = data.encode()
         self.stdin.write(data + b"\n")
+    
+    def register_console_consumer(self, callback: Union[typing.Coroutine, asyncio.Future], temp: bool=False):
+        """
+        Registers a console consumer coroutine.
+
+        Args:
+            callback (Coroutine, Future): A coroutine that handles output from the console.
+            temp (bool, optional): Whether or not the callback is temporary (only run once). Defaults to False.
+
+        Raises:
+            ValueError: If `callback` is not a coroutine.
+        """
+        if not asyncio.iscoroutine(callback) or not asyncio.isfuture(callback):
+            raise ValueError("Callback must be a coroutine or an awaitable future!")
+        # Add the new consumer to the list of consumers
+        if temp:
+            self._temp_consumers.append(callback)
+        else:
+            self._consumers.append(callback)
