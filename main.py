@@ -4,14 +4,17 @@ import itertools
 import json
 import os
 import time
-from typing import Union
+from typing import Annotated, Union
 
 import uvicorn
-from fastapi import APIRouter, FastAPI, Response, status
+from fastapi import APIRouter, Depends, FastAPI, Response, status
 from fastapi.responses import StreamingResponse
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 
 from config import JsonConfig
 from services.process import Process
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
 class MCConsoleAPI:
@@ -25,6 +28,7 @@ class MCConsoleAPI:
         self.router.add_api_route("/", self.read_root, methods=["GET"])
         self.router.add_api_route("/output", self.console_output, methods=["GET"])
         self.router.add_api_route("/input", self.console_input, methods=["POST"])
+        self.router.add_api_route("/token", self.login_for_access_token, methods=["POST"])
 
         self.app.include_router(self.router)
 
@@ -40,9 +44,9 @@ class MCConsoleAPI:
         await self.process.start_server()
         # Setup the webserver stuff and start it
         server_config = uvicorn.Config(self.app, host=self.config["host"], port=self.config["port"], log_level=self.config["log_level"])
-        server = uvicorn.Server(server_config)
+        self.server = uvicorn.Server(server_config)
         try:
-            await server.serve()
+            await self.server.serve()
         except (KeyboardInterrupt, RuntimeError, asyncio.CancelledError):
             print("Keyboard interrupt or other error received! Stopping minecraft server gracefully...")
             if self.process.running:
@@ -53,14 +57,16 @@ class MCConsoleAPI:
                 
                 # Wait for the process to stop
                 while self.process.running:
+                    print('still running')
                     await asyncio.sleep(0.1)
-            exit()
+            # TODO: Exit with better option. Only exists because oauth causes to hang when closing process normally.
+            os._exit(0)
 
     async def console_output(self, lines: Union[int, None] = None) -> StreamingResponse:
         """ Gets n lines from the server output and returns it """
         return StreamingResponse(self.serve_console_lines(lines))
 
-    async def console_input(self, command: str, response: Response) -> dict:
+    async def console_input(self, response: Response, command: str, form_data = Depends(oauth2_scheme)) -> dict:
         success, line = await self.process.server_input(command)
         if success:
             return {"message": "success", "line": line}
@@ -82,6 +88,20 @@ class MCConsoleAPI:
             relevant = copy[-lines:]
             for line in relevant:
                 yield json.dumps({"line": line}) + "\n"
+
+    def authenticate_user(self, username: str, password: str):
+        if username == "colin" and password == "test":
+            return True
+
+    async def login_for_access_token(self, form_data: Annotated[OAuth2PasswordRequestForm, Depends()]) -> dict:
+        user = self.authenticate_user(form_data.username, form_data.password)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect username or password",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        return {"access_token": form_data.username, "token_type": "bearer"}
 
 
 async def main(args: argparse.Namespace):
