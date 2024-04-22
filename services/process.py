@@ -147,7 +147,7 @@ class ProcessProtocol(SubprocessProtocol):
         Raises:
             ValueError: If `callback` is not a coroutine.
         """
-        if not asyncio.iscoroutine(callback) or not asyncio.isfuture(callback):
+        if not asyncio.iscoroutinefunction(callback) and not asyncio.isfuture(callback):
             raise ValueError("Callback must be a coroutine or an awaitable future!")
         # Add the new consumer to the list of consumers
         if temp:
