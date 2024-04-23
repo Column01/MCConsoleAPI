@@ -5,9 +5,10 @@ import os
 from typing import Union
 
 import uvicorn
-from fastapi import APIRouter, FastAPI, Response, status, Security, HTTPException
+from fastapi import (APIRouter, FastAPI, HTTPException, Response, Security,
+                     status)
 from fastapi.responses import StreamingResponse
-from fastapi.security import APIKeyQuery, APIKeyHeader
+from fastapi.security import APIKeyHeader, APIKeyQuery
 
 from config import JsonConfig
 from database import SQLiteDB
@@ -78,7 +79,8 @@ class MCConsoleAPI:
                 while self.process.running:
                     print('still running')
                     await asyncio.sleep(0.1)
-            # TODO: Exit with better option. Only exists because oauth causes to hang when closing process normally.
+            # TODO: Exit with better option.
+            # Only exists because for some reason being authenticated causes to hang when closing process normally.
             os._exit(0)
 
     async def console_output(self, lines: Union[int, None] = None) -> StreamingResponse:
