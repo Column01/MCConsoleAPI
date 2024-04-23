@@ -1,6 +1,4 @@
 import asyncio
-import collections
-import json
 import typing
 from asyncio import SubprocessProtocol, transports
 from typing import Optional, Union
@@ -31,8 +29,8 @@ class Process:
         self._transport, self._protocol = await self.loop.subprocess_exec(
             lambda: self.protocol,
             *java_cmd,
-            stdin=asyncio.subprocess.PIPE, 
-            stdout=asyncio.subprocess.PIPE, 
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE
         )
 
@@ -78,7 +76,7 @@ class Process:
         self.running = False
         if self.exit_future is not None:
             await self.exit_future(exit_code)
-    
+
     async def console_output(self, output: str):
         """ Callback used to handle output from the server console """
         print(output)
@@ -116,7 +114,7 @@ class ProcessProtocol(SubprocessProtocol):
             else:
                 self.loop.create_task(consumer(message))
 
-        # Temporary consumers, get removed after one usage. 
+        # Temporary consumers, get removed after one usage.
         # Useful for some things like checking the result of a command execution
         for i in range(len(self._temp_consumers)):
             consumer = self._temp_consumers.pop()
@@ -135,8 +133,8 @@ class ProcessProtocol(SubprocessProtocol):
         if isinstance(data, str):
             data = data.encode()
         self.stdin.write(data + b"\n")
-    
-    def register_console_consumer(self, callback: Union[typing.Coroutine, asyncio.Future], temp: bool=False):
+
+    def register_console_consumer(self, callback: Union[typing.Coroutine, asyncio.Future], temp: bool = False):
         """
         Registers a console consumer coroutine.
 
