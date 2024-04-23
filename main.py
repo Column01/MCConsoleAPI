@@ -7,19 +7,25 @@ from typing import Union
 import uvicorn
 from fastapi import APIRouter, FastAPI, Response, status, Security, HTTPException
 from fastapi.responses import StreamingResponse
-from fastapi.security import APIKeyQuery
+from fastapi.security import APIKeyQuery, APIKeyHeader
 
 from config import JsonConfig
 from database import SQLiteDB
 from services.process import Process
 
-api_key_query = APIKeyQuery(name="api_key")
+api_key_query = APIKeyQuery(name="api_key", auto_error=False)
+api_key_header = APIKeyHeader(name="x-api-key", auto_error=False)
 
 
-def validate_api_key(api_key: str = Security(api_key_query)):
+def validate_api_key(
+    api_key_query: str = Security(api_key_query),
+    api_key_header: str = Security(api_key_header)
+):
     db = SQLiteDB('api_keys.db', autocommit=True)
-    if api_key and db.has_api_key(api_key):
-        return api_key
+    if api_key_query and db.has_api_key(api_key_query):
+        return api_key_query
+    if api_key_header and db.has_api_key(api_key_header):
+        return api_key_header
 
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
