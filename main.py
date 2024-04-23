@@ -21,7 +21,19 @@ api_key_header = APIKeyHeader(name="x-api-key", auto_error=False)
 def validate_api_key(
     api_key_query: str = Security(api_key_query),
     api_key_header: str = Security(api_key_header)
-):
+) -> str:
+    """Validates a user's API key
+
+    Args:
+        api_key_query (str, optional): API key from query parameter `api_key`
+        api_key_header (str, optional): API key from header `x-api-key`
+
+    Raises:
+        HTTPException: Raised as 401 Unauthorized when API key Invalid or missing
+
+    Returns:
+        str: The API key used to authenticate
+    """
     db = SQLiteDB('api_keys.db', autocommit=True)
     if api_key_query and db.has_api_key(api_key_query):
         return api_key_query
@@ -56,6 +68,7 @@ class MCConsoleAPI:
         self.db.setup_database()
 
     async def read_root(self):
+        """ Web root. Just kinda here for fun """
         return {"line": "Connected to MCConsoleAPI! You can read the server output at '/output'"}
 
     async def start_server(self):
@@ -88,6 +101,7 @@ class MCConsoleAPI:
         return StreamingResponse(self.serve_console_lines(lines))
 
     async def console_input(self, response: Response, command: str, api_key=Security(validate_api_key)) -> dict:
+        """ Send a command to the server console """
         success, line = await self.process.server_input(command)
         if success:
             return {"message": "success", "line": line}
@@ -95,7 +109,8 @@ class MCConsoleAPI:
             response.status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
             return {"message": f"Error when processing command: {command}. Is it a valid command?", "line": line}
 
-    async def server_stopped(self, exit_code):
+    async def server_stopped(self, exit_code: int):
+        """ Called when the minecraft server exits """
         print(f"Minecraft server has stopped with exit code: {exit_code}")
 
     async def serve_console_lines(self, lines: Union[int, None]) -> str:
