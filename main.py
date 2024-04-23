@@ -1,20 +1,30 @@
 import argparse
 import asyncio
-import itertools
 import json
 import os
-import time
-from typing import Annotated, Union
+from typing import Union
 
 import uvicorn
-from fastapi import APIRouter, Depends, FastAPI, Response, status
+from fastapi import APIRouter, FastAPI, Response, status, Security, HTTPException
 from fastapi.responses import StreamingResponse
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.security import APIKeyQuery
 
 from config import JsonConfig
+from database import SQLiteDB
 from services.process import Process
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+api_key_query = APIKeyQuery(name="api_key")
+
+
+def validate_api_key(api_key: str = Security(api_key_query)):
+    db = SQLiteDB('api_keys.db', autocommit=True)
+    if api_key and db.has_api_key(api_key):
+        return api_key
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid or missing API key"
+    )
 
 
 class MCConsoleAPI:
@@ -28,15 +38,18 @@ class MCConsoleAPI:
         self.router.add_api_route("/", self.read_root, methods=["GET"])
         self.router.add_api_route("/output", self.console_output, methods=["GET"])
         self.router.add_api_route("/input", self.console_input, methods=["POST"])
-        self.router.add_api_route("/token", self.login_for_access_token, methods=["POST"])
 
         self.app.include_router(self.router)
 
         # Setup the server process stuff
         self.process = Process(config, server_path, self.server_stopped)
-    
+
+        # Setup the Database
+        self.db = SQLiteDB("api_keys.db", autocommit=True)
+        self.db.setup_database()
+
     async def read_root(self):
-        return {"Hello": "World"}
+        return {"line": "Connected to MCConsoleAPI! You can read the server output at '/output'"}
 
     async def start_server(self):
         """ This is the entry point to the entire script, this is run to start everything """
@@ -54,7 +67,7 @@ class MCConsoleAPI:
                 success, line = await self.process.server_input("stop")
                 if success:
                     print("Successfully triggered server stop. Waiting for process to close...")
-                
+
                 # Wait for the process to stop
                 while self.process.running:
                     print('still running')
@@ -66,7 +79,7 @@ class MCConsoleAPI:
         """ Gets n lines from the server output and returns it """
         return StreamingResponse(self.serve_console_lines(lines))
 
-    async def console_input(self, response: Response, command: str, form_data = Depends(oauth2_scheme)) -> dict:
+    async def console_input(self, response: Response, command: str, api_key=Security(validate_api_key)) -> dict:
         success, line = await self.process.server_input(command)
         if success:
             return {"message": "success", "line": line}
@@ -89,20 +102,6 @@ class MCConsoleAPI:
             for line in relevant:
                 yield json.dumps({"line": line}) + "\n"
 
-    def authenticate_user(self, username: str, password: str):
-        if username == "colin" and password == "test":
-            return True
-
-    async def login_for_access_token(self, form_data: Annotated[OAuth2PasswordRequestForm, Depends()]) -> dict:
-        user = self.authenticate_user(form_data.username, form_data.password)
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Incorrect username or password",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        return {"access_token": form_data.username, "token_type": "bearer"}
-
 
 async def main(args: argparse.Namespace):
     # Get the server path from the command arguments and change to that dir
@@ -119,9 +118,9 @@ async def main(args: argparse.Namespace):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        prog="MCConsoleAPI", 
+        prog="MCConsoleAPI",
         description="A Python-Based async minecraft server wrapper that exposes HTTP endpoints for interaction with your server"
-        )
+    )
 
     parser.add_argument('-p', "--path", metavar="PATH", type=str, default=".", required=False, help="The path to your minecraft server")
     args = parser.parse_args()
