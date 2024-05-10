@@ -79,7 +79,7 @@ class Process:
         if self.protocol:
             print(f"Sending input to server STDIN: {data}")
             future = self.loop.create_future()
-            self.protocol.register_console_consumer(future, temp=True)
+            self.protocol.register_console_consumer(future)
             await self.protocol.write_process(data)
             await future
             line = future.result()
@@ -157,21 +157,21 @@ class ProcessProtocol(SubprocessProtocol):
             data = data.encode()
         self.stdin.write(data + b"\n")
 
-    def register_console_consumer(self, callback: Union[typing.Coroutine, asyncio.Future], temp: bool = False):
+    def register_console_consumer(self, callback: Union[typing.Coroutine, asyncio.Future]):
         """
-        Registers a console consumer coroutine.
+        Registers a console consumer coroutine or future.
 
         Args:
-            callback (Coroutine, Future): A coroutine that handles output from the console.
-            temp (bool, optional): Whether or not the callback is temporary (only run once). Defaults to False.
+            callback (Coroutine, Future): A coroutine or future that handles output from the console.
 
         Raises:
-            ValueError: If `callback` is not a coroutine.
+            ValueError: If `callback` is not a coroutine or a future.
         """
-        if not asyncio.iscoroutinefunction(callback) and not asyncio.isfuture(callback):
-            raise ValueError("Callback must be a coroutine or an awaitable future!")
-        # Add the new consumer to the list of consumers
-        if temp:
+        if asyncio.iscoroutinefunction(callback):
+            # If the callback is a coroutine, add it as a permanent consumer
+            self._consumers.append(callback)
+        elif asyncio.isfuture(callback):
+            # If the callback is a future, add it as a temporary consumer
             self._temp_consumers.append(callback)
         else:
-            self._consumers.append(callback)
+            raise ValueError("Callback must be a coroutine or a future!")
