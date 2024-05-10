@@ -127,7 +127,6 @@ class MCConsoleAPI:
                 yield json.dumps({"line": line}) + "\n"
 
     async def restart_server(self, response: Response, timestamp: Optional[float] = None, api_key=Security(validate_api_key)):
-        print("Triggered server restart")
 
         if timestamp is not None:
             current_time = time.time()
@@ -158,11 +157,13 @@ class MCConsoleAPI:
             # Schedule the restart using asyncio
             loop = asyncio.get_event_loop()
             loop.call_later(time_diff, asyncio.create_task, self.process.restart_server())
-
-            return {"message": f"Scheduled a server restart in {', '.join(msg_parts)}"}
+            msg2 = f"Scheduled a server restart in {', '.join(msg_parts)}"
+            print(msg2)
+            return {"message": msg2}
 
         # If no timestamp is provided, restart immediately
         await self.process.restart_server()
+        print("Triggered server restart")
         return {"message": "Triggered a server restart successfully"}
 
 
