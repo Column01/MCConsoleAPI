@@ -36,6 +36,22 @@ class Process:
 
         self.running = True
 
+    async def restart_server(self):
+        if not self.running:
+            print("Server is not currently running. Starting the server instead.")
+            await self.start_server()
+            return
+        print("Restarting the server...")
+        # Send the 'stop' command to the server input
+        await self.server_input("stop")
+        # Wait for the server to stop
+        while self.running:
+            await asyncio.sleep(1)
+        print("Server stopped. Starting the server again...")
+        # Start the server again
+        await self.start_server()
+        print("Server restarted successfully.")
+
     def build_java_command(self) -> list:
         """ Builds a java command from the config """
         java_cmd = []
@@ -72,8 +88,15 @@ class Process:
         return (False, "Server protocol is not present... has the server been started?")
 
     async def proc_closed(self, exit_code):
-        print(f"SERVER PROC CLOSED! {exit_code}")
+        print(f"SERVER PROC CLOSED! Exit code: {exit_code}")
         self.running = False
+
+        if exit_code != 0:
+            print("Server exited with a non-zero exit code. Restarting the server...")
+            await self.restart_server()
+        else:
+            print("Server exited normally.")
+
         if self.exit_future is not None:
             await self.exit_future(exit_code)
 

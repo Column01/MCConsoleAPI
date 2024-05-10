@@ -57,6 +57,7 @@ class MCConsoleAPI:
         self.router.add_api_route("/", self.read_root, methods=["GET"])
         self.router.add_api_route("/output", self.console_output, methods=["GET"])
         self.router.add_api_route("/input", self.console_input, methods=["POST"])
+        self.router.add_api_route("/restart", self.restart_server, methods=["POST"])
 
         self.app.include_router(self.router)
 
@@ -124,6 +125,11 @@ class MCConsoleAPI:
             relevant = copy[-lines:]
             for line in relevant:
                 yield json.dumps({"line": line}) + "\n"
+
+    async def restart_server(self, api_key=Security(validate_api_key)):
+        print("Triggered server restart")
+        await self.process.restart_server()
+        return {"message": "Triggered a server restart successfully"}
 
 
 async def main(args: argparse.Namespace):
