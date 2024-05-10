@@ -92,7 +92,6 @@ class MCConsoleAPI:
 
                 # Wait for the process to stop
                 while self.process.running:
-                    print('still running')
                     await asyncio.sleep(0.1)
             # TODO: Exit with better option.
             # Only exists because for some reason being authenticated causes to hang when closing process normally.
