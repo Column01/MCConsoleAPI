@@ -2,7 +2,8 @@ import argparse
 import asyncio
 import json
 import os
-from typing import Union
+import time
+from typing import Optional, Union
 
 import uvicorn
 from fastapi import (APIRouter, FastAPI, HTTPException, Response, Security,
@@ -126,8 +127,42 @@ class MCConsoleAPI:
             for line in relevant:
                 yield json.dumps({"line": line}) + "\n"
 
-    async def restart_server(self, api_key=Security(validate_api_key)):
+    async def restart_server(self, response: Response, timestamp: Optional[float] = None, api_key=Security(validate_api_key)):
         print("Triggered server restart")
+
+        if timestamp is not None:
+            current_time = time.time()
+
+            if timestamp < current_time:
+                response.status_code = status.HTTP_400_BAD_REQUEST
+                return {"message": "Invalid timestamp. Timestamp must be in the future."}
+
+            # Calculate the time difference between the current time and the specified timestamp
+            time_diff = timestamp - current_time
+
+            # Convert the time difference to hours, minutes, and seconds
+            hours, remainder = divmod(time_diff, 3600)
+            minutes, seconds = divmod(remainder, 60)
+
+            # Build the announcement message
+            msg_parts = []
+            if hours > 0:
+                msg_parts.append(f"{int(hours)} hour{'s' if hours > 1 else ''}")
+            if minutes > 0:
+                msg_parts.append(f"{int(minutes)} minute{'s' if minutes > 1 else ''}")
+            if seconds > 0:
+                msg_parts.append(f"{int(seconds)} second{'s' if seconds > 1 else ''}")
+
+            msg = f"say PLANNED SERVER RESTART IN {', '.join(msg_parts)}"
+            await self.process.server_input(msg)
+
+            # Schedule the restart using asyncio
+            loop = asyncio.get_event_loop()
+            loop.call_later(time_diff, asyncio.create_task, self.process.restart_server())
+
+            return {"message": f"Scheduled a server restart in {', '.join(msg_parts)}"}
+
+        # If no timestamp is provided, restart immediately
         await self.process.restart_server()
         return {"message": "Triggered a server restart successfully"}
 
