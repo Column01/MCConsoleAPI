@@ -188,6 +188,7 @@ if __name__ == "__main__":
 
     parser.add_argument('-p', "--path", metavar="PATH", type=str, default=".", required=False, help="The path to your minecraft server")
     args = parser.parse_args()
-    loop = asyncio.get_event_loop()
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     main_task = asyncio.ensure_future(main(args))
     loop.run_until_complete(main_task)
