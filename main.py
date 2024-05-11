@@ -15,7 +15,6 @@ from database import SQLiteDB
 from services.process import Process
 from util import generate_time_message
 
-
 api_key_query = APIKeyQuery(name="api_key", auto_error=False)
 api_key_header = APIKeyHeader(name="x-api-key", auto_error=False)
 
