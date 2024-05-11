@@ -120,7 +120,7 @@ class MCConsoleAPI:
             for line in self.process.scrollback_buffer:
                 yield json.dumps({"line": line}) + "\n"
         else:
-            # Copy the scollback buffer so we don't modify it
+            # Copy the scrollback buffer so we don't modify it
             copy = self.process.scrollback_buffer.copy()
             relevant = copy[-lines:]
             for line in relevant:
