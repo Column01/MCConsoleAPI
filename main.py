@@ -2,7 +2,6 @@ import argparse
 import asyncio
 import json
 import os
-import time
 from typing import Optional, Union
 
 import uvicorn
@@ -14,6 +13,8 @@ from fastapi.security import APIKeyHeader, APIKeyQuery
 from config import JsonConfig
 from database import SQLiteDB
 from services.process import Process
+from util import generate_time_message
+
 
 api_key_query = APIKeyQuery(name="api_key", auto_error=False)
 api_key_header = APIKeyHeader(name="x-api-key", auto_error=False)
@@ -126,45 +127,40 @@ class MCConsoleAPI:
             for line in relevant:
                 yield json.dumps({"line": line}) + "\n"
 
-    async def restart_server(self, response: Response, timestamp: Optional[float] = None, api_key=Security(validate_api_key)):
-
-        if timestamp is not None:
-            current_time = time.time()
-
-            if timestamp < current_time:
+    async def restart_server(self, response: Response, time_delta: Optional[int] = None, api_key=Security(validate_api_key)):
+        if time_delta is not None:
+            if time_delta <= 0:
                 response.status_code = status.HTTP_400_BAD_REQUEST
-                return {"message": "Invalid timestamp. Timestamp must be in the future."}
+                return {"message": "Invalid time delta. Time delta must be greater than 0 seconds."}
 
-            # Calculate the time difference between the current time and the specified timestamp
-            time_diff = timestamp - current_time
+            time_to_restart = generate_time_message(time_delta)
 
-            # Convert the time difference to hours, minutes, and seconds
-            hours, remainder = divmod(time_diff, 3600)
-            minutes, seconds = divmod(remainder, 60)
-
-            # Build the announcement message
-            msg_parts = []
-            if hours > 0:
-                msg_parts.append(f"{int(hours)} hour{'s' if hours > 1 else ''}")
-            if minutes > 0:
-                msg_parts.append(f"{int(minutes)} minute{'s' if minutes > 1 else ''}")
-            if seconds > 0:
-                msg_parts.append(f"{int(seconds)} second{'s' if seconds > 1 else ''}")
-
-            msg = f"say PLANNED SERVER RESTART IN {', '.join(msg_parts)}"
+            msg = f"say WARNING: PLANNED SERVER RESTART IN {time_to_restart}"
             await self.process.server_input(msg)
 
-            # Schedule the restart using asyncio
+            # Schedule the restart and reminder tasks using asyncio
             loop = asyncio.get_event_loop()
-            loop.call_later(time_diff, asyncio.create_task, self.process.restart_server())
-            msg2 = f"Scheduled a server restart in {', '.join(msg_parts)}"
+            loop.call_later(time_delta, asyncio.create_task, self.process.restart_server())
+
+            # Schedule reminder tasks
+            reminder_intervals = [3600, 1800, 300, 60]  # 1 hour, 30 minutes, 5 minutes, 1 minute
+            for interval in reminder_intervals:
+                if time_delta >= interval:
+                    loop.call_later(time_delta - interval, asyncio.create_task, self.send_restart_reminder(interval))
+
+            msg2 = f"Scheduled a server restart in {time_to_restart}"
             print(msg2)
             return {"message": msg2}
 
-        # If no timestamp is provided, restart immediately
+        # If no time delta is provided, restart immediately
         await self.process.restart_server()
         print("Triggered server restart")
         return {"message": "Triggered a server restart successfully"}
+
+    async def send_restart_reminder(self, interval: int):
+        time_to_restart = generate_time_message(interval)
+        msg = f"say WARNING: PLANNED SERVER RESTART IN {time_to_restart}"
+        await self.process.server_input(msg)
 
 
 async def main(args: argparse.Namespace):

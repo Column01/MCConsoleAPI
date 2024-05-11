@@ -48,3 +48,18 @@ def find_jar(pattern):
         return None
     else:
         return files[0]
+
+
+def generate_time_message(interval: int) -> str:
+    hours, remainder = divmod(interval, 3600)
+    minutes, seconds = divmod(remainder, 60)
+
+    msg_parts = []
+    if hours > 0:
+        msg_parts.append(f"{hours} hour{'s' if hours > 1 else ''}")
+    if minutes > 0:
+        msg_parts.append(f"{minutes} minute{'s' if minutes > 1 else ''}")
+    if seconds > 0:
+        msg_parts.append(f"{seconds} second{'s' if seconds > 1 else ''}")
+
+    return ", ".join(msg_parts)
