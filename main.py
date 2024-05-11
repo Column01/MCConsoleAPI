@@ -145,7 +145,7 @@ class MCConsoleAPI:
             # Schedule reminder tasks
             reminder_intervals = [3600, 1800, 300, 60]  # 1 hour, 30 minutes, 5 minutes, 1 minute
             for interval in reminder_intervals:
-                if time_delta >= interval:
+                if time_delta > interval:
                     loop.call_later(time_delta - interval, asyncio.create_task, self.send_restart_reminder(interval))
 
             msg2 = f"Scheduled a server restart in {time_to_restart}"
