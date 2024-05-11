@@ -1,5 +1,4 @@
 import json
-import logging
 import os
 from collections import OrderedDict
 
@@ -17,4 +16,3 @@ class JsonConfig(OrderedDict):
                 fp.close()
         else:
             exit(f"Could not find config file at path {self.file_path}! Is this a server directory?")
-
