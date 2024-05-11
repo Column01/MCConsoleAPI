@@ -12,9 +12,9 @@ class LimitedList(list):
         list.__init__(self, *args, **kwargs)
 
     def _truncate(self):
-        dif = len(self)-self._maxlen
+        dif = len(self) - self._maxlen
         if dif > 0:
-            self[:dif]=[]
+            self[:dif] = []
 
     def append(self, x):
         list.append(self, x)
