@@ -91,7 +91,9 @@ class Process:
         print(f"SERVER PROC CLOSED! Exit code: {exit_code}")
         self.running = False
 
-        if exit_code != 0:
+        # 3221225786 is because for some odd reason, I think ctrl+c gets forwarded
+        # to the minecraft server when done from the API console when it shouldn't
+        if exit_code not in (0, 3221225786):
             print("Server exited with a non-zero exit code. Restarting the server...")
             await self.restart_server()
         else:
