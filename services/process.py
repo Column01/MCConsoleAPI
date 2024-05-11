@@ -4,7 +4,7 @@ from asyncio import SubprocessProtocol, transports
 from typing import Optional, Union
 
 from config import JsonConfig
-from util.util import LimitedList, find_jar
+from util import LimitedList, find_jar
 
 
 class Process:
