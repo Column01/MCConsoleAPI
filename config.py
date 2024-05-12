@@ -15,4 +15,6 @@ class JsonConfig(OrderedDict):
                     self[k] = v
                 fp.close()
         else:
-            exit(f"Could not find config file at path {self.file_path}! Is this a server directory?")
+            exit(
+                f"Could not find config file at path {self.file_path}! Is this a server directory?"
+            )

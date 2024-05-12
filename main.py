@@ -5,8 +5,7 @@ import os
 from typing import Optional, Union
 
 import uvicorn
-from fastapi import (APIRouter, FastAPI, HTTPException, Response, Security,
-                     status)
+from fastapi import APIRouter, FastAPI, HTTPException, Response, Security, status
 from fastapi.responses import StreamingResponse
 from fastapi.security import APIKeyHeader, APIKeyQuery
 
@@ -21,7 +20,7 @@ api_key_header = APIKeyHeader(name="x-api-key", auto_error=False)
 
 def validate_api_key(
     api_key_query: str = Security(api_key_query),
-    api_key_header: str = Security(api_key_header)
+    api_key_header: str = Security(api_key_header),
 ) -> str:
     """Validates a user's API key
 
@@ -35,15 +34,14 @@ def validate_api_key(
     Returns:
         str: The API key used to authenticate
     """
-    db = SQLiteDB('api_keys.db', autocommit=True)
+    db = SQLiteDB("api_keys.db", autocommit=True)
     if api_key_query and db.has_api_key(api_key_query):
         return api_key_query
     if api_key_header and db.has_api_key(api_key_header):
         return api_key_header
 
     raise HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Invalid or missing API key"
+        status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or missing API key"
     )
 
 
@@ -70,25 +68,36 @@ class MCConsoleAPI:
         self.db.setup_database()
 
     async def read_root(self):
-        """ Web root. Just kinda here for fun """
-        return {"line": "Connected to MCConsoleAPI! You can read the server output at '/output'"}
+        """Web root. Just kinda here for fun"""
+        return {
+            "line": "Connected to MCConsoleAPI! You can read the server output at '/output'"
+        }
 
     async def start_server(self):
-        """ This is the entry point to the entire script, this is run to start everything """
+        """This is the entry point to the entire script, this is run to start everything"""
         # Start the minecraft server
         await self.process.start_server()
         # Setup the webserver stuff and start it
-        server_config = uvicorn.Config(self.app, host=self.config["host"], port=self.config["port"], log_level=self.config["log_level"])
+        server_config = uvicorn.Config(
+            self.app,
+            host=self.config["host"],
+            port=self.config["port"],
+            log_level=self.config["log_level"],
+        )
         self.server = uvicorn.Server(server_config)
         try:
             await self.server.serve()
         except (KeyboardInterrupt, RuntimeError, asyncio.CancelledError):
-            print("Keyboard interrupt or other error received! Stopping minecraft server gracefully...")
+            print(
+                "Keyboard interrupt or other error received! Stopping minecraft server gracefully..."
+            )
             if self.process.running:
                 # Send the server stop command
                 success, line = await self.process.server_input("stop")
                 if success:
-                    print("Successfully triggered server stop. Waiting for process to close...")
+                    print(
+                        "Successfully triggered server stop. Waiting for process to close..."
+                    )
 
                 # Wait for the process to stop
                 while self.process.running:
@@ -98,24 +107,29 @@ class MCConsoleAPI:
             os._exit(0)
 
     async def console_output(self, lines: Union[int, None] = None) -> StreamingResponse:
-        """ Gets n lines from the server output and returns it """
+        """Gets n lines from the server output and returns it"""
         return StreamingResponse(self.serve_console_lines(lines))
 
-    async def console_input(self, response: Response, command: str, api_key=Security(validate_api_key)) -> dict:
-        """ Send a command to the server console """
+    async def console_input(
+        self, response: Response, command: str, api_key=Security(validate_api_key)
+    ) -> dict:
+        """Send a command to the server console"""
         success, line = await self.process.server_input(command)
         if success:
             return {"message": "success", "line": line}
         else:
             response.status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
-            return {"message": f"Error when processing command: {command}. Is it a valid command?", "line": line}
+            return {
+                "message": f"Error when processing command: {command}. Is it a valid command?",
+                "line": line,
+            }
 
     async def server_stopped(self, exit_code: int):
-        """ Called when the minecraft server exits """
+        """Called when the minecraft server exits"""
         print(f"Minecraft server has stopped with exit code: {exit_code}")
 
     async def serve_console_lines(self, lines: Union[int, None]) -> str:
-        """ Streams console lines via HTTP """
+        """Streams console lines via HTTP"""
         if lines is None:
             for line in self.process.scrollback_buffer:
                 yield json.dumps({"line": line}) + "\n"
@@ -126,11 +140,18 @@ class MCConsoleAPI:
             for line in relevant:
                 yield json.dumps({"line": line}) + "\n"
 
-    async def restart_server(self, response: Response, time_delta: Optional[int] = None, api_key=Security(validate_api_key)):
+    async def restart_server(
+        self,
+        response: Response,
+        time_delta: Optional[int] = None,
+        api_key=Security(validate_api_key),
+    ):
         if time_delta is not None:
             if time_delta <= 0:
                 response.status_code = status.HTTP_400_BAD_REQUEST
-                return {"message": "Invalid time delta. Time delta must be greater than 0 seconds."}
+                return {
+                    "message": "Invalid time delta. Time delta must be greater than 0 seconds."
+                }
 
             time_to_restart = generate_time_message(time_delta)
 
@@ -139,13 +160,24 @@ class MCConsoleAPI:
 
             # Schedule the restart and reminder tasks using asyncio
             loop = asyncio.get_event_loop()
-            loop.call_later(time_delta, asyncio.create_task, self.process.restart_server())
+            loop.call_later(
+                time_delta, asyncio.create_task, self.process.restart_server()
+            )
 
             # Schedule reminder tasks
-            reminder_intervals = [3600, 1800, 300, 60]  # 1 hour, 30 minutes, 5 minutes, 1 minute
+            reminder_intervals = [
+                3600,
+                1800,
+                300,
+                60,
+            ]  # 1 hour, 30 minutes, 5 minutes, 1 minute
             for interval in reminder_intervals:
                 if time_delta > interval:
-                    loop.call_later(time_delta - interval, asyncio.create_task, self.send_restart_reminder(interval))
+                    loop.call_later(
+                        time_delta - interval,
+                        asyncio.create_task,
+                        self.send_restart_reminder(interval),
+                    )
 
             msg2 = f"Scheduled a server restart in {time_to_restart}"
             print(msg2)
@@ -178,10 +210,18 @@ async def main(args: argparse.Namespace):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         prog="MCConsoleAPI",
-        description="A Python-Based async minecraft server wrapper that exposes HTTP endpoints for interaction with your server"
+        description="A Python-Based async minecraft server wrapper that exposes HTTP endpoints for interaction with your server",
     )
 
-    parser.add_argument('-p', "--path", metavar="PATH", type=str, default=".", required=False, help="The path to your minecraft server")
+    parser.add_argument(
+        "-p",
+        "--path",
+        metavar="PATH",
+        type=str,
+        default=".",
+        required=False,
+        help="The path to your minecraft server",
+    )
     args = parser.parse_args()
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)

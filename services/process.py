@@ -8,7 +8,12 @@ from util import LimitedList, find_jar
 
 
 class Process:
-    def __init__(self, config: JsonConfig, server_path: str, exit_future: Optional[typing.Coroutine] = None):
+    def __init__(
+        self,
+        config: JsonConfig,
+        server_path: str,
+        exit_future: Optional[typing.Coroutine] = None,
+    ):
         self.config = config
         self.server_path = server_path
         self.exit_future = exit_future
@@ -31,7 +36,7 @@ class Process:
             *java_cmd,
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
+            stderr=asyncio.subprocess.PIPE,
         )
 
         self.running = True
@@ -53,7 +58,7 @@ class Process:
         print("Server restarted successfully.")
 
     def build_java_command(self) -> list:
-        """ Builds a java command from the config """
+        """Builds a java command from the config"""
         java_cmd = []
         mc_config = self.config["minecraft"]
         # Add the java path
@@ -83,7 +88,7 @@ class Process:
             await self.protocol.write_process(data)
             await future
             line = future.result()
-            return ('unknown command' not in line.lower(), line)
+            return ("unknown command" not in line.lower(), line)
 
         return (False, "Server protocol is not present... has the server been started?")
 
@@ -103,12 +108,13 @@ class Process:
             await self.exit_future(exit_code)
 
     async def console_output(self, output: str):
-        """ Callback used to handle output from the server console """
+        """Callback used to handle output from the server console"""
         print(output)
 
 
 class ProcessProtocol(SubprocessProtocol):
-    """ Process Protocol that handles server process I/O """
+    """Process Protocol that handles server process I/O"""
+
     def __init__(self, exit_future: typing.Coroutine):
         # Exit future
         self.exit_future = exit_future
@@ -159,7 +165,9 @@ class ProcessProtocol(SubprocessProtocol):
             data = data.encode()
         self.stdin.write(data + b"\n")
 
-    def register_console_consumer(self, callback: Union[typing.Coroutine, asyncio.Future]):
+    def register_console_consumer(
+        self, callback: Union[typing.Coroutine, asyncio.Future]
+    ):
         """
         Registers a console consumer coroutine or future.
 
