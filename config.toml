@@ -15,3 +15,5 @@ jvm_args = [ ]
 auto_restart = false
 # Time in hours between server restarts
 restart_interval = 6
+# Intervals (in seconds) to alert of a pending server restart
+alert_intervals = [3600, 1800, 300, 30]
