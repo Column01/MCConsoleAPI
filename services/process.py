@@ -4,7 +4,7 @@ from asyncio import SubprocessProtocol, transports
 from typing import Optional, Union
 
 from config import TomlConfig
-from util import LimitedList, find_jar
+from util import LimitedList, find_jar, generate_time_message
 
 
 class Process:
@@ -43,14 +43,27 @@ class Process:
 
         # Check the configuration for automatic restarts
         if self.config["minecraft"]["restarts"]["auto_restart"]:
-            restart_interval = self.config["minecraft"]["restarts"]["restart_interval"] * 3600
-            print(f"Automatic server restarts enabled. Restart interval: {restart_interval} hours")
-            # Queue the server restart after the specified interval
-            self.loop.call_later(restart_interval, self.loop.create_task, self.restart_server())
+            restart_interval = self.config["minecraft"]["restarts"]["restart_interval"]
+            print(
+                f"Automatic server restarts enabled. Restart interval: {restart_interval} hours"
+            )
 
-            time_to_restart = generate_time_message(restart_interval)
-            msg = f"say WARNING: PLANNED SERVER RESTART IN {time_to_restart}"
-            await self.server_input(msg)
+            # Get the alert intervals from the configuration
+            alert_intervals = self.config["minecraft"]["restarts"]["alert_intervals"]
+
+            # Queue the restart reminders based on the alert intervals
+            for interval in alert_intervals:
+                if interval < restart_interval * 3600:
+                    self.loop.call_later(
+                        restart_interval * 3600 - interval,
+                        self.loop.create_task,
+                        self.send_restart_reminder(interval),
+                    )
+
+            # Queue the server restart after the specified interval
+            self.loop.call_later(
+                restart_interval * 3600, self.loop.create_task, self.restart_server()
+            )
 
     async def restart_server(self):
         if not self.running:
@@ -117,6 +130,11 @@ class Process:
 
         if self.exit_future is not None:
             await self.exit_future(exit_code)
+
+    async def send_restart_reminder(self, interval: int):
+        time_to_restart = generate_time_message(interval)
+        msg = f"say WARNING: PLANNED SERVER RESTART IN {time_to_restart}"
+        await self.server_input(msg)
 
     async def console_output(self, output: str):
         """Callback used to handle output from the server console"""
