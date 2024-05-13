@@ -57,6 +57,9 @@ class MCConsoleAPI:
         self.router.add_api_route("/output", self.console_output, methods=["GET"])
         self.router.add_api_route("/input", self.console_input, methods=["POST"])
         self.router.add_api_route("/restart", self.restart_server, methods=["POST"])
+        self.router.add_api_route(
+            "/reload_config", self.reload_config, methods=["POST"]
+        )
 
         self.app.include_router(self.router)
 
@@ -66,6 +69,9 @@ class MCConsoleAPI:
         # Setup the Database
         self.db = SQLiteDB("api_keys.db", autocommit=True)
         self.db.setup_database()
+
+        # Lock for reloading config
+        self.config_reload_lock = asyncio.Lock()
 
     async def read_root(self):
         """Web root. Just kinda here for fun"""
@@ -146,6 +152,7 @@ class MCConsoleAPI:
         time_delta: Optional[int] = None,
         api_key=Security(validate_api_key),
     ):
+        """Restarts the server with an optional time delta for when to do it"""
         if time_delta is not None:
             if time_delta <= 0:
                 response.status_code = status.HTTP_400_BAD_REQUEST
@@ -181,6 +188,11 @@ class MCConsoleAPI:
         await self.process.restart_server()
         print("Triggered server restart")
         return {"message": "Triggered a server restart successfully"}
+
+    async def reload_config(self, api_key=Security(validate_api_key)):
+        async with self.config_reload_lock:
+            self.config.reload()
+        return {"message": "Config file reloaded successfully"}
 
 
 async def main(args: argparse.Namespace):

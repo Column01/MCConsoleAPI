@@ -38,3 +38,7 @@ class TomlConfig(OrderedDict):
             exit(
                 f"Could not find config file at path {self.file_path}! Is this a server directory?"
             )
+
+    def reload(self):
+        self.clear()  # Clear the existing data in the OrderedDict
+        self.load_toml()  # Reload the TOML file from disk
