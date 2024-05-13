@@ -41,6 +41,17 @@ class Process:
 
         self.running = True
 
+        # Check the configuration for automatic restarts
+        if self.config["minecraft"]["restarts"]["auto_restart"]:
+            restart_interval = self.config["minecraft"]["restarts"]["restart_interval"] * 3600
+            print(f"Automatic server restarts enabled. Restart interval: {restart_interval} hours")
+            # Queue the server restart after the specified interval
+            self.loop.call_later(restart_interval, self.loop.create_task, self.restart_server())
+
+            time_to_restart = generate_time_message(restart_interval)
+            msg = f"say WARNING: PLANNED SERVER RESTART IN {time_to_restart}"
+            await self.server_input(msg)
+
     async def restart_server(self):
         if not self.running:
             print("Server is not currently running. Starting the server instead.")
