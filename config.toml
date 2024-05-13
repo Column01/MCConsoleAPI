@@ -1,0 +1,17 @@
+[general]
+# The IP and Port to bind the web server too
+host = "127.0.0.1"
+port = 5000
+log_level = "info"
+
+[minecraft]
+# Path to your install of java. In this case, defaults to the installed java version
+java_path = "java"
+server_jar = "server.jar"
+jvm_args = [ ]
+
+[minecraft.restarts]
+# Whether or not to restart the server
+auto_restart = false
+# Time in hours between server restarts
+restart_interval = 6

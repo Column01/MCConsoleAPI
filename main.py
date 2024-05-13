@@ -9,7 +9,7 @@ from fastapi import APIRouter, FastAPI, HTTPException, Response, Security, statu
 from fastapi.responses import StreamingResponse
 from fastapi.security import APIKeyHeader, APIKeyQuery
 
-from config import JsonConfig
+from config import TomlConfig
 from database import SQLiteDB
 from services.process import Process
 from util import generate_time_message
@@ -46,7 +46,7 @@ def validate_api_key(
 
 
 class MCConsoleAPI:
-    def __init__(self, config: JsonConfig, server_path: str):
+    def __init__(self, config: TomlConfig, server_path: str):
         self.config = config
         self.server_path = server_path
 
@@ -80,9 +80,9 @@ class MCConsoleAPI:
         # Setup the webserver stuff and start it
         server_config = uvicorn.Config(
             self.app,
-            host=self.config["host"],
-            port=self.config["port"],
-            log_level=self.config["log_level"],
+            host=self.config["general"]["host"],
+            port=self.config["general"]["port"],
+            log_level=self.config["general"]["log_level"],
         )
         self.server = uvicorn.Server(server_config)
         try:
@@ -200,7 +200,7 @@ async def main(args: argparse.Namespace):
     os.chdir(server_path)
 
     # Load the server config file
-    config = JsonConfig("config.json")
+    config = TomlConfig("config.toml")
 
     # Setup the API and start the server
     api = MCConsoleAPI(config, server_path)

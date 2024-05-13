@@ -3,14 +3,14 @@ import typing
 from asyncio import SubprocessProtocol, transports
 from typing import Optional, Union
 
-from config import JsonConfig
+from config import TomlConfig
 from util import LimitedList, find_jar
 
 
 class Process:
     def __init__(
         self,
-        config: JsonConfig,
+        config: TomlConfig,
         server_path: str,
         exit_future: Optional[typing.Coroutine] = None,
     ):
