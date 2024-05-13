@@ -7,7 +7,7 @@ log_level = "info"
 [minecraft]
 # Path to your install of java. In this case, defaults to the installed java version
 java_path = "java"
-server_jar = "server.jar"
+server_jar = "minecraft_*.jar"
 jvm_args = [ ]
 
 [minecraft.restarts]
