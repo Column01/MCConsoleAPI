@@ -151,7 +151,7 @@ class MCConsoleAPI:
         response: Response,
         time_delta: Optional[int] = None,
         api_key=Security(validate_api_key),
-    ):
+    )-> dict:
         """Restarts the server with an optional time delta for when to do it"""
         if time_delta is not None:
             if time_delta <= 0:
@@ -189,7 +189,7 @@ class MCConsoleAPI:
         print("Triggered server restart")
         return {"message": "Triggered a server restart successfully"}
 
-    async def reload_config(self, api_key=Security(validate_api_key)):
+    async def reload_config(self, api_key=Security(validate_api_key)) -> dict:
         async with self.config_reload_lock:
             self.config.reload()
         return {"message": "Config file reloaded successfully"}

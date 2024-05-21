@@ -1,5 +1,6 @@
 import secrets
 import sqlite3
+from typing import Union
 
 
 class SQLiteDB:
@@ -39,7 +40,7 @@ class SQLiteDB:
             return True
         return False
 
-    def add_api_key(self, name: str) -> str:
+    def add_api_key(self, name: str) -> Union[str, None]:
         # Generate a new API key
         new_api_key = secrets.token_urlsafe(16)
         try:
