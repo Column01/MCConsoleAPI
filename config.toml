@@ -17,3 +17,8 @@ auto_restart = false
 restart_interval = 6
 # Intervals (in seconds) to alert of a pending server restart
 alert_intervals = [3600, 1800, 300, 30]
+
+[minecraft.console]
+# Section of regexes for handling server output for various things
+player_connected = "(\\w+) joined the game"
+player_disconnected = "(\\w+) left the game"

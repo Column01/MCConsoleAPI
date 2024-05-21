@@ -63,6 +63,9 @@ class MCConsoleAPI:
         self.router.add_api_route(
             "/gen_api_key", self.generate_api_key, methods=["POST"]
         )
+        self.router.add_api_route(
+            "/players", self.get_connected_players, methods=["GET"]
+        )
 
         self.app.include_router(self.router)
 
@@ -213,6 +216,10 @@ class MCConsoleAPI:
                 "message": f"An API key was successfully created for the name: {name}",
                 "api_key": new_api_key,
             }
+
+    async def get_connected_players(self, api_key=Security(validate_api_key)) -> dict:
+        """Returns the list of connected players"""
+        return {"players": self.process.connected_players}
 
 
 async def main(args: argparse.Namespace):

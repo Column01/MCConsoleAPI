@@ -1,4 +1,5 @@
 import asyncio
+import re
 import typing
 from asyncio import SubprocessProtocol, transports
 from typing import Optional, Union
@@ -18,6 +19,9 @@ class Process:
         self.server_path = server_path
         self.exit_future = exit_future
         self.loop = asyncio.get_event_loop()
+
+        # List of connected players
+        self.connected_players = []
 
         self.running = False
 
@@ -139,6 +143,29 @@ class Process:
     async def console_output(self, output: str):
         """Callback used to handle output from the server console"""
         print(output)
+
+        # Get the regular expression patterns from the configuration
+        connect_pattern = re.compile(
+            self.config["minecraft"]["console"]["player_connected"]
+        )
+        disconnect_pattern = re.compile(
+            self.config["minecraft"]["console"]["player_disconnected"]
+        )
+
+        # Check for player connection
+        connect_match = connect_pattern.search(output)
+        if connect_match:
+            player = connect_match.group(1)
+            print(f"Player connected: {player}")
+            self.connected_players.append(player)
+
+        # Check for player disconnection
+        disconnect_match = disconnect_pattern.search(output)
+        if disconnect_match:
+            player = disconnect_match.group(1)
+            print(f"Player disconnected: {player}")
+            if player in self.connected_players:
+                self.connected_players.remove(player)
 
 
 class ProcessProtocol(SubprocessProtocol):
