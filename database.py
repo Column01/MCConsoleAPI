@@ -13,10 +13,9 @@ class SQLiteDB:
             "CREATE TABLE IF NOT EXISTS api_keys (api_key TEXT PRIMARY KEY, name TEXT UNIQUE)"
         )
 
-        # Try to get the Admin API key from the database.
-        self.cursor.execute('SELECT * from api_keys WHERE name = "admin"')
-        admin = self.cursor.fetchone()
-        if admin is None:
+        # Try to get the Admin API key from the database
+        admin_api_key = self.get_api_key_by_name("admin")
+        if admin_api_key is None:
             api_key = self.add_api_key("admin")
             if api_key is None:
                 exit(
@@ -54,3 +53,16 @@ class SQLiteDB:
         except sqlite3.IntegrityError:
             print(f"ERROR: An API key with the name '{name}' already exists.")
             return None
+
+    def get_api_key_by_name(self, name: str) -> Union[str, None]:
+        self.cursor.execute("SELECT api_key from api_keys WHERE name = ?", (name,))
+        result = self.cursor.fetchone()
+        if result is not None:
+            return result[0]
+        return None
+
+    def is_admin_api_key(self, api_key: str) -> bool:
+        admin_api_key = self.get_api_key_by_name("admin")
+        if admin_api_key is not None:
+            return secrets.compare_digest(api_key, admin_api_key)
+        return False
