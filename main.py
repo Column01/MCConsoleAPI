@@ -118,7 +118,9 @@ class MCConsoleAPI:
             # Only exists because for some reason being authenticated causes to hang when closing process normally.
             os._exit(0)
 
-    async def console_output(self, lines: Union[int, None] = None) -> StreamingResponse:
+    async def console_output(
+        self, lines: Union[int, None] = None, api_key=Security(validate_api_key)
+    ) -> StreamingResponse:
         """Gets n lines from the server output and returns it"""
         return StreamingResponse(self.serve_console_lines(lines))
 
