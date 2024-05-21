@@ -60,7 +60,9 @@ class MCConsoleAPI:
         self.router.add_api_route(
             "/reload_config", self.reload_config, methods=["POST"]
         )
-        self.router.add_api_route("/gen_api_key", self.generate_api_key, methods=["POST"])
+        self.router.add_api_route(
+            "/gen_api_key", self.generate_api_key, methods=["POST"]
+        )
 
         self.app.include_router(self.router)
 
@@ -195,7 +197,9 @@ class MCConsoleAPI:
             self.config.reload()
         return {"message": "Config file reloaded successfully"}
 
-    async def generate_api_key(self, response: Response, name: str, api_key=Security(validate_api_key)) -> dict:
+    async def generate_api_key(
+        self, response: Response, name: str, api_key=Security(validate_api_key)
+    ) -> dict:
         if not self.db.is_admin_api_key(api_key):
             response.status_code = status.HTTP_403_FORBIDDEN
             return {"message": "Only the admin API key can generate new API keys."}
@@ -205,7 +209,10 @@ class MCConsoleAPI:
             response.status_code = status.HTTP_400_BAD_REQUEST
             return {"message": f"An API key with the name '{name}' already exists."}
         else:
-            return {"message": f"An API key was successfully created for the name: {name}", "api_key": new_api_key}
+            return {
+                "message": f"An API key was successfully created for the name: {name}",
+                "api_key": new_api_key,
+            }
 
 
 async def main(args: argparse.Namespace):
