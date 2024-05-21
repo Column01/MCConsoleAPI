@@ -152,7 +152,7 @@ class MCConsoleAPI:
         response: Response,
         time_delta: Optional[int] = None,
         api_key=Security(validate_api_key),
-    )-> dict:
+    ) -> dict:
         """Restarts the server with an optional time delta for when to do it"""
         if time_delta is not None:
             if time_delta <= 0:
@@ -196,12 +196,16 @@ class MCConsoleAPI:
         return {"message": "Config file reloaded successfully"}
 
     async def generate_api_key(self, response: Response, name: str, api_key=Security(validate_api_key)) -> dict:
-        api_key = self.db.add_api_key(name)
-        if api_key is None:
+        if not self.db.is_admin_api_key(api_key):
+            response.status_code = status.HTTP_403_FORBIDDEN
+            return {"message": "Only the admin API key can generate new API keys."}
+
+        new_api_key = self.db.add_api_key(name)
+        if new_api_key is None:
             response.status_code = status.HTTP_400_BAD_REQUEST
             return {"message": f"An API key with the name '{name}' already exists."}
         else:
-            return {"message": f"An API key was successfully created for the name: {name}", "api_key": api_key}
+            return {"message": f"An API key was successfully created for the name: {name}", "api_key": new_api_key}
 
 
 async def main(args: argparse.Namespace):
