@@ -17,14 +17,14 @@ This project is a WIP and is not guaranteed to be secure in any way. Steps have 
     - If you downloaded it as a ZIP file, please extract it to a folder somewhere logical
 3. Install Requirements
     - Open a command prompt or terminal (google it)
-    - Change to the directory of the program: `cd /path/to/extracted/download/`
+    - Change to the directory of the program: `cd /path/to/extracted/download/` (or `P:\ath\to\extracted\download\` on windows)
     - Windows: `python -m pip install -r requirements.txt`
     - Unix: `pip3 install -r requirements.txt`
 
 ### Configuration
 
 1. Copy `config.toml` and place it into the root directory of your server (where `server.properties` and the server jar are located)
-2. Open the `config.toml` in your text editor of choosing, verify all the settings are set how you would like.
+2. Open the `config.toml` in your text editor of choice, verify all the settings are set how you would like.
     - Things should be commented as well as I can (and if you need clarification, please [create an issue](https://github.com/Column01/MCConsoleAPI/issues) and ask)
     - The main things to check here are the server `host` and the `port`, these are the IP and Port the API will use to serve HTTP requests. This is also the info you need to develop any tools around it
     - After that, ensure the `java_path`, `server_jar` and `jvm_args` have anything you need setup for your instance.
@@ -50,7 +50,7 @@ ADMIN API KEY: ADMIN-API-KEY
 
 Copy this somewhere, if you lose it you will need to regenerate it. This API key is also the only API key that can issue a new API key, so you need it if you would like to authorize other clients to use your server's API.
 
-The Admin (and any other API keys) are **server specific**. If you decide to host more than one server, you will need to run more than once instance of `MCConsoleAPI`. The API keys are stored in an SQLite3 database file in the server root (`api_keys.db`). If you ever lose your admin API key, or you need to regenerate your API keys in the event of a breach, just delete this file.
+The Admin (and any other API keys) are **server specific**. If you decide to host more than one server, you will need to run more than one instance of `MCConsoleAPI`. The API keys are stored in an SQLite3 database file in the server root (`api_keys.db`). If you ever lose your admin API key, or you need to regenerate your API keys in the event of a breach, just delete this file.
 
 See the next section on viewing the API documentation where you can also see the endpoint for creating a new API key. It is recommended you do this immediately and DO NOT use the Admin API key for every day tasks.
 
