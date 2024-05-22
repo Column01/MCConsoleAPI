@@ -149,8 +149,7 @@ class MCConsoleAPI:
                 yield json.dumps({"line": line}) + "\n"
         else:
             # Copy the scrollback buffer so we don't modify it
-            copy = self.process.scrollback_buffer[-lines:].copy()
-            for line in copy:
+            for line in self.process.scrollback_buffer[-lines:]:
                 yield json.dumps({"line": line}) + "\n"
 
     async def restart_server(
