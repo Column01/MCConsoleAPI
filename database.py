@@ -1,6 +1,6 @@
 import secrets
 import sqlite3
-from typing import Union
+from typing import Optional
 
 
 class SQLiteDB:
@@ -39,7 +39,7 @@ class SQLiteDB:
             return True
         return False
 
-    def add_api_key(self, name: str) -> Union[str, None]:
+    def add_api_key(self, name: str) -> Optional[str]:
         # Generate a new API key
         new_api_key = secrets.token_urlsafe(16)
         try:
@@ -54,7 +54,7 @@ class SQLiteDB:
             print(f"ERROR: An API key with the name '{name}' already exists.")
             return None
 
-    def get_api_key_by_name(self, name: str) -> Union[str, None]:
+    def get_api_key_by_name(self, name: str) -> Optional[str]:
         self.cursor.execute("SELECT api_key from api_keys WHERE name = ?", (name,))
         result = self.cursor.fetchone()
         if result is not None:

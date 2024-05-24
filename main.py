@@ -99,9 +99,9 @@ class MCConsoleAPI:
         self.server = uvicorn.Server(server_config)
         try:
             await self.server.serve()
-        except (KeyboardInterrupt, RuntimeError, asyncio.CancelledError):
+        except (KeyboardInterrupt, RuntimeError, asyncio.CancelledError) as err:
             print(
-                "Keyboard interrupt or other error received! Stopping minecraft server gracefully..."
+                f"{err.__class__.__name__} received! Stopping minecraft server gracefully..."
             )
             if self.process.running:
                 # Send the server stop command
@@ -158,9 +158,7 @@ class MCConsoleAPI:
                     await asyncio.sleep(1)
         else:
             # Copy the scrollback buffer so we don't modify it
-            copy = self.process.scrollback_buffer.copy()
-            relevant = copy[-lines:]
-            for line in relevant:
+            for line in self.process.scrollback_buffer[-lines:]:
                 yield json.dumps({"line": line}) + "\n"
 
     async def restart_server(
