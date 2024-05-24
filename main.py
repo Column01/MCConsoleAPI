@@ -2,7 +2,7 @@ import argparse
 import asyncio
 import json
 import os
-from typing import Optional, Union
+from typing import Optional, Union, AsyncGenerator
 
 import uvicorn
 from fastapi import APIRouter, FastAPI, HTTPException, Response, Security, status
@@ -142,11 +142,20 @@ class MCConsoleAPI:
         """Called when the minecraft server exits"""
         print(f"Minecraft server has stopped with exit code: {exit_code}")
 
-    async def serve_console_lines(self, lines: Union[int, None]) -> str:
-        """Streams console lines via HTTP"""
+    async def serve_console_lines(self, lines: Union[int, None]) -> AsyncGenerator[str, None]:
+        """Gets `lines` of output from the console or streams console lines as they become available"""
         if lines is None:
-            for line in self.process.scrollback_buffer:
-                yield json.dumps({"line": line}) + "\n"
+            last_line_count = 0
+            while True:
+                current_line_count = len(self.process.scrollback_buffer)
+                if current_line_count > last_line_count:
+                    new_lines = self.process.scrollback_buffer[last_line_count:]
+                    for line in new_lines:
+                        yield json.dumps({"line": line}) + "\n"
+                    last_line_count = current_line_count
+                else:
+                    # No new lines, pause before checking again
+                    await asyncio.sleep(1)
         else:
             # Copy the scrollback buffer so we don't modify it
             for line in self.process.scrollback_buffer[-lines:]:
