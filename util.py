@@ -43,7 +43,6 @@ def find_files(pattern):
 
 def find_jar(pattern):
     files = find_files(pattern)
-    print(files)
     if len(files) == 0:
         return None
     else:
