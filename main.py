@@ -52,6 +52,7 @@ class MCConsoleAPI:
         # Setup API routes
         self.router = APIRouter()
         self.router.add_api_route("/start_server", self.start_server, methods=["POST"])
+        self.router.add_api_route("/{alias}/stop", self.stop_server, methods=["POST"])
         self.router.add_api_route(
             "/{alias}/output", self.console_output, methods=["GET"]
         )
@@ -121,6 +122,33 @@ class MCConsoleAPI:
             return {
                 "message": f"Failed to start the Minecraft server. Please ensure that a server jar matching the pattern '{jar_pattern}' exists in the server path '{server_path}'"
             }
+
+    async def stop_server(
+        self, response: Response, alias: str, api_key=Security(validate_api_key)
+    ) -> dict:
+        if alias not in self.processes:
+            response.status_code = status.HTTP_404_NOT_FOUND
+            return {"message": f"Server with alias '{alias}' not found"}
+
+        process = self.processes[alias]
+
+        if not process.running:
+            return {"message": f"Server with alias '{alias}' is already stopped"}
+
+        await process.server_input("stop")
+
+        # Wait for the server to stop with a timeout of 30 seconds
+        timeout = 30
+        while process.running and timeout > 0:
+            await asyncio.sleep(1)
+            timeout -= 1
+
+        if not process.running:
+            del self.processes[alias]
+            return {"message": f"Server with alias '{alias}' stopped successfully"}
+        else:
+            response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+            return {"message": f"Server with alias '{alias}' failed to stop within the timeout period"}
 
     async def console_output(
         self,
