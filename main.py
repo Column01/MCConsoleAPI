@@ -148,7 +148,9 @@ class MCConsoleAPI:
             return {"message": f"Server with alias '{alias}' stopped successfully"}
         else:
             response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-            return {"message": f"Server with alias '{alias}' failed to stop within the timeout period"}
+            return {
+                "message": f"Server with alias '{alias}' failed to stop within the timeout period"
+            }
 
     async def console_output(
         self,
@@ -287,7 +289,9 @@ class MCConsoleAPI:
                 "api_key": new_api_key,
             }
 
-    async def get_connected_players(self, alias: str, api_key=Security(validate_api_key)) -> dict:
+    async def get_connected_players(
+        self, alias: str, api_key=Security(validate_api_key)
+    ) -> dict:
         if alias not in self.processes:
             return {"error": f"Server with alias '{alias}' not found"}
         return {"players": self.processes[alias].connected_players}
