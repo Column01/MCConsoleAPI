@@ -1,4 +1,5 @@
 import asyncio
+import os
 import re
 import typing
 from asyncio import SubprocessProtocol, transports
@@ -25,15 +26,24 @@ class Process:
 
         self.running = False
 
-    async def start_server(self):
+    async def start_server(self) -> bool:
+        # Capture the current directory
+        prev_dir = os.getcwd()
+        # Change to the server directory
+        os.chdir(self.server_path)
         # Get the java command
-        java_cmd = self.build_java_command()
+        try:
+            java_cmd = await self.build_java_command()
+        except FileNotFoundError as e:
+            print(f"An error occurred when building the Java command: {e}")
+            # Change back to the old working directory
+            os.chdir(prev_dir)
+            return False
         # Build the process protocol
         self.protocol = ProcessProtocol(self.proc_closed)
         self.protocol.register_console_consumer(self.console_output)
         self.scrollback_buffer = self.protocol.scrollback_buffer
-
-        print(f"Starting server: {' '.join(java_cmd)}")
+        print(f"Starting server with the following CMD: {' '.join(java_cmd)}")
         # Start server process and connect our custom protocol to it
         self._transport, self._protocol = await self.loop.subprocess_exec(
             lambda: self.protocol,
@@ -69,6 +79,10 @@ class Process:
                 restart_interval * 3600, self.loop.create_task, self.restart_server()
             )
 
+        # Change back to the old working directory
+        os.chdir(prev_dir)
+        return True
+
     async def restart_server(self):
         if not self.running:
             print("Server is not currently running. Starting the server instead.")
@@ -85,7 +99,7 @@ class Process:
         await self.start_server()
         print("Server restarted successfully.")
 
-    def build_java_command(self) -> list:
+    async def build_java_command(self) -> list:
         """Builds a java command from the config"""
         java_cmd = []
         mc_config = self.config["minecraft"]
@@ -101,6 +115,8 @@ class Process:
         # Add -jar and jar path
         java_cmd.append("-jar")
         jar_path = find_jar(mc_config["server_jar"])
+        if jar_path is None:
+            raise FileNotFoundError(f"Unable to find a minecraft jar using the pattern: {mc_config["server_jar"]}")
         java_cmd.append(jar_path)
 
         # No GUI
