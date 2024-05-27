@@ -2,7 +2,7 @@ import argparse
 import asyncio
 import json
 import os
-from typing import Optional, Union, AsyncGenerator
+from typing import AsyncGenerator, Optional, Union
 
 import uvicorn
 from fastapi import APIRouter, FastAPI, HTTPException, Response, Security, status
@@ -142,7 +142,9 @@ class MCConsoleAPI:
         """Called when the minecraft server exits"""
         print(f"Minecraft server has stopped with exit code: {exit_code}")
 
-    async def serve_console_lines(self, lines: Union[int, None]) -> AsyncGenerator[str, None]:
+    async def serve_console_lines(
+        self, lines: Union[int, None]
+    ) -> AsyncGenerator[str, None]:
         """Gets `lines` of output from the console or streams console lines as they become available"""
         if lines is None:
             last_line_count = 0
