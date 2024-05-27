@@ -51,6 +51,7 @@ class MCConsoleAPI:
         self.app = FastAPI()
         # Setup API routes
         self.router = APIRouter()
+        self.router.add_api_route("/", self.read_root, methods=["GET"])
         self.router.add_api_route("/start_server", self.start_server, methods=["POST"])
         self.router.add_api_route("/{alias}/stop", self.stop_server, methods=["POST"])
         self.router.add_api_route(
@@ -87,7 +88,7 @@ class MCConsoleAPI:
     async def read_root(self):
         """Web root. Just kinda here for fun"""
         return {
-            "line": "Connected to MCConsoleAPI! You can read the server output at '/output'"
+            "line": "Connected to MCConsoleAPI! You can read a server's output at '{alias}/output'"
         }
 
     async def start_api_server(self):
