@@ -53,18 +53,12 @@ class MCConsoleAPI:
         self.router = APIRouter()
         self.router.add_api_route("/", self.read_root, methods=["GET"])
         self.router.add_api_route("/start_server", self.start_server, methods=["POST"])
-        self.router.add_api_route("/{alias}/stop", self.stop_server, methods=["POST"])
+        self.router.add_api_route("/stop", self.stop_server, methods=["POST"])
+        self.router.add_api_route("/output", self.console_output, methods=["GET"])
+        self.router.add_api_route("/input", self.console_input, methods=["POST"])
+        self.router.add_api_route("/restart", self.restart_server, methods=["POST"])
         self.router.add_api_route(
-            "/{alias}/output", self.console_output, methods=["GET"]
-        )
-        self.router.add_api_route(
-            "/{alias}/input", self.console_input, methods=["POST"]
-        )
-        self.router.add_api_route(
-            "/{alias}/restart", self.restart_server, methods=["POST"]
-        )
-        self.router.add_api_route(
-            "/{alias}/players", self.get_connected_players, methods=["GET"]
+            "/players", self.get_connected_players, methods=["GET"]
         )
         self.router.add_api_route(
             "/reload_config", self.reload_config, methods=["POST"]
@@ -88,7 +82,7 @@ class MCConsoleAPI:
     async def read_root(self):
         """Web root. Just kinda here for fun"""
         return {
-            "line": "Connected to MCConsoleAPI! You can read a server's output at '{alias}/output'"
+            "line": "Connected to MCConsoleAPI! You can read a server's output at '{server_name}/output'"
         }
 
     async def start_api_server(self):
@@ -106,16 +100,16 @@ class MCConsoleAPI:
         self,
         response: Response,
         server_path: str,
-        alias: str,
+        server_name: str,
         api_key=Security(validate_api_key),
     ) -> dict:
         process = Process(self.config, server_path, self.server_stopped)
         started = await process.start_server()
 
         if started:
-            self.processes[alias] = process
+            self.processes[server_name] = process
             return {
-                "message": f"Minecraft server started successfully with alias: {alias}"
+                "message": f"Minecraft server started successfully with name: {server_name}"
             }
         else:
             jar_pattern = self.config["minecraft"]["server_jar"]
@@ -125,16 +119,16 @@ class MCConsoleAPI:
             }
 
     async def stop_server(
-        self, response: Response, alias: str, api_key=Security(validate_api_key)
+        self, response: Response, server_name: str, api_key=Security(validate_api_key)
     ) -> dict:
-        if alias not in self.processes:
+        if server_name not in self.processes:
             response.status_code = status.HTTP_404_NOT_FOUND
-            return {"message": f"Server with alias '{alias}' not found"}
+            return {"message": f"Server with name '{server_name}' not found"}
 
-        process = self.processes[alias]
+        process = self.processes[server_name]
 
         if not process.running:
-            return {"message": f"Server with alias '{alias}' is already stopped"}
+            return {"message": f"Server with name '{server_name}' is already stopped"}
 
         await process.server_input("stop")
 
@@ -145,38 +139,38 @@ class MCConsoleAPI:
             timeout -= 1
 
         if not process.running:
-            del self.processes[alias]
-            return {"message": f"Server with alias '{alias}' stopped successfully"}
+            del self.processes[server_name]
+            return {"message": f"Server with name '{server_name}' stopped successfully"}
         else:
             response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
             return {
-                "message": f"Server with alias '{alias}' failed to stop within the timeout period"
+                "message": f"Server with name '{server_name}' failed to stop within the timeout period"
             }
 
     async def console_output(
         self,
-        alias: str,
+        server_name: str,
         lines: Union[int, None] = None,
         api_key=Security(validate_api_key),
     ) -> StreamingResponse:
-        if alias not in self.processes:
+        if server_name not in self.processes:
             raise HTTPException(
-                status_code=404, detail=f"Server with alias '{alias}' not found"
+                status_code=404, detail=f"Server with name '{server_name}' not found"
             )
-        return StreamingResponse(self.serve_console_lines(alias, lines))
+        return StreamingResponse(self.serve_console_lines(server_name, lines))
 
     async def console_input(
         self,
         response: Response,
-        alias: str,
+        server_name: str,
         command: str,
         api_key=Security(validate_api_key),
     ) -> dict:
-        if alias not in self.processes:
+        if server_name not in self.processes:
             response.status_code = status.HTTP_404_NOT_FOUND
-            return {"message": f"Server with alias '{alias}' not found"}
+            return {"message": f"Server with name '{server_name}' not found"}
 
-        success, line = await self.processes[alias].server_input(command)
+        success, line = await self.processes[server_name].server_input(command)
         if success:
             return {"message": "success", "line": line}
         else:
@@ -191,18 +185,18 @@ class MCConsoleAPI:
         print(f"Minecraft server has stopped with exit code: {exit_code}")
 
     async def serve_console_lines(
-        self, alias: str, lines: Union[int, None]
+        self, server_name: str, lines: Union[int, None]
     ) -> AsyncGenerator[str, None]:
-        if alias not in self.processes:
-            yield json.dumps({"error": f"Server with alias '{alias}' not found"})
+        if server_name not in self.processes:
+            yield json.dumps({"error": f"Server with name '{server_name}' not found"})
             return
 
         if lines is None:
             last_line_count = 0
             while True:
-                current_line_count = len(self.processes[alias].scrollback_buffer)
+                current_line_count = len(self.processes[server_name].scrollback_buffer)
                 if current_line_count > last_line_count:
-                    new_lines = self.processes[alias].scrollback_buffer[
+                    new_lines = self.processes[server_name].scrollback_buffer[
                         last_line_count:
                     ]
                     for line in new_lines:
@@ -213,20 +207,20 @@ class MCConsoleAPI:
                     await asyncio.sleep(1)
         else:
             # Copy the scrollback buffer so we don't modify it
-            for line in self.processes[alias].scrollback_buffer[-lines:]:
+            for line in self.processes[server_name].scrollback_buffer[-lines:]:
                 yield json.dumps({"line": line}) + "\n"
 
     async def restart_server(
         self,
         response: Response,
-        alias: str,
+        server_name: str,
         time_delta: Optional[int] = None,
         api_key=Security(validate_api_key),
     ) -> dict:
         """Restarts the server with an optional time delta for when to do it"""
-        if alias not in self.processes:
+        if server_name not in self.processes:
             response.status_code = status.HTTP_404_NOT_FOUND
-            return {"message": f"Server with alias '{alias}' not found"}
+            return {"message": f"Server with name '{server_name}' not found"}
 
         if not self.processes:
             response.status_code = status.HTTP_400_BAD_REQUEST
@@ -242,12 +236,14 @@ class MCConsoleAPI:
             time_to_restart = generate_time_message(time_delta)
 
             msg = f"say WARNING: PLANNED SERVER RESTART IN {time_to_restart}"
-            await self.processes[alias].server_input(msg)
+            await self.processes[server_name].server_input(msg)
 
             # Schedule the restart and reminder tasks using asyncio
             loop = asyncio.get_event_loop()
             loop.call_later(
-                time_delta, asyncio.create_task, self.processes[alias].restart_server()
+                time_delta,
+                asyncio.create_task,
+                self.processes[server_name].restart_server(),
             )
 
             alert_intervals = self.config["minecraft"]["restarts"]["alert_intervals"]
@@ -256,7 +252,7 @@ class MCConsoleAPI:
                     loop.call_later(
                         time_delta - interval,
                         asyncio.create_task,
-                        self.processes[alias].send_restart_reminder(interval),
+                        self.processes[server_name].send_restart_reminder(interval),
                     )
 
             msg2 = f"Scheduled a server restart in {time_to_restart}"
@@ -264,7 +260,7 @@ class MCConsoleAPI:
             return {"message": msg2}
 
         # If no time delta is provided, restart immediately
-        await self.processes[alias].restart_server()
+        await self.processes[server_name].restart_server()
         print("Triggered server restart")
         return {"message": "Triggered a server restart successfully"}
 
@@ -291,11 +287,11 @@ class MCConsoleAPI:
             }
 
     async def get_connected_players(
-        self, alias: str, api_key=Security(validate_api_key)
+        self, server_name: str, api_key=Security(validate_api_key)
     ) -> dict:
-        if alias not in self.processes:
-            return {"error": f"Server with alias '{alias}' not found"}
-        return {"players": self.processes[alias].connected_players}
+        if server_name not in self.processes:
+            return {"error": f"Server with name '{server_name}' not found"}
+        return {"players": self.processes[server_name].connected_players}
 
 
 async def main(args: argparse.Namespace):
