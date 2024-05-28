@@ -15,7 +15,7 @@ class TomlConfig(OrderedDict):
                 data = tomllib.load(fp)
                 self.update(data)
         else:
-            exit(
+            raise FileNotFoundError(
                 f"Could not find config file at path {self.file_path}! Is this a server directory?"
             )
 

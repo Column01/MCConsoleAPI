@@ -12,14 +12,20 @@ from util import LimitedList, find_jar, generate_time_message
 class Process:
     def __init__(
         self,
-        config: TomlConfig,
         server_path: str,
         exit_future: Optional[typing.Coroutine] = None,
     ):
-        self.config = config
-        self.server_path = server_path
+        # Ensure we always get the absolute path to the server directory
+        self.server_path = os.path.abspath(server_path)
         self.exit_future = exit_future
         self.loop = asyncio.get_event_loop()
+
+        # Load the config from the server_path directory
+        config_path = os.path.join(self.server_path, "config.toml")
+        try:
+            self.config = TomlConfig(config_path)
+        except FileNotFoundError:
+            print("Error when loading the config file for the server as it was not found!")
 
         # List of connected players
         self.connected_players = []
@@ -27,17 +33,14 @@ class Process:
         self.running = False
 
     async def start_server(self) -> bool:
-        # Capture the current directory
-        prev_dir = os.getcwd()
-        # Change to the server directory
-        os.chdir(self.server_path)
+        # Reload the config before using it
+        self.config.reload()
+
         # Get the java command
         try:
             java_cmd = await self.build_java_command()
         except FileNotFoundError as e:
             print(f"An error occurred when building the Java command: {e}")
-            # Change back to the old working directory
-            os.chdir(prev_dir)
             return False
         # Build the process protocol
         self.protocol = ProcessProtocol(self.proc_closed)
@@ -51,8 +54,10 @@ class Process:
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
+            cwd=self.server_path  # start proccess in server dir
         )
 
+        # Server started flag
         self.running = True
 
         # Check the configuration for automatic restarts
@@ -79,8 +84,6 @@ class Process:
                 restart_interval * 3600, self.loop.create_task, self.restart_server()
             )
 
-        # Change back to the old working directory
-        os.chdir(prev_dir)
         return True
 
     async def restart_server(self):
@@ -114,9 +117,9 @@ class Process:
 
         # Add -jar and jar path
         java_cmd.append("-jar")
-        jar_path = find_jar(mc_config["server_jar"])
+        jar_path = find_jar(os.path.join(self.server_path, mc_config["server_jar"]))
         if jar_path is None:
-            raise FileNotFoundError(f"Unable to find a minecraft jar using the pattern: {mc_config["server_jar"]}")
+            raise FileNotFoundError(f"Unable to find a minecraft jar in the server directory using the pattern: {mc_config["server_jar"]}")
         java_cmd.append(jar_path)
 
         # No GUI

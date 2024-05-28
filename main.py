@@ -103,7 +103,7 @@ class MCConsoleAPI:
         server_name: str,
         api_key=Security(validate_api_key),
     ) -> dict:
-        process = Process(self.config, server_path, self.server_stopped)
+        process = Process(server_path, self.server_stopped)
         started = await process.start_server()
 
         if started:
