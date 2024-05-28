@@ -159,7 +159,9 @@ class Process:
             await self.restart_server()
         else:
             print("Server exited normally.")
-        if self.exit_future is not None and not self.restarting:
+
+        # Run exit future if it exists and server isn't restarting or running
+        if self.exit_future is not None and not self.restarting and not self.running:
             await self.exit_future(self.server_name, exit_code)
 
     async def send_restart_reminder(self, interval: int):
