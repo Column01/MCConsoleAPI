@@ -1,6 +1,6 @@
 import asyncio
 import os
-import tomllib
+import toml
 from collections import OrderedDict
 
 
@@ -13,8 +13,8 @@ class TomlConfig(OrderedDict):
 
     def load_toml(self):
         if os.path.isfile(self.file_path):
-            with open(self.file_path, "rb") as fp:
-                data = tomllib.load(fp)
+            with open(self.file_path, "r") as fp:
+                data = toml.load(fp)
                 self.update(data)
         else:
             raise FileNotFoundError(
