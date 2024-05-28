@@ -36,7 +36,7 @@ class Process:
 
     async def start_server(self) -> bool:
         # Reload the config before using it
-        self.config.reload()
+        await self.config.reload()
 
         # Get the java command
         try:

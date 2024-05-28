@@ -271,16 +271,14 @@ class MCConsoleAPI:
         api_key=Security(validate_api_key),
     ) -> dict:
         if server_name is None:
-            async with self.config_reload_lock:
-                self.config.reload()
+            await self.config.reload()
             return {"message": "Config file reloaded successfully"}
         else:
             if server_name not in self.processes:
                 response.status_code = status.HTTP_404_NOT_FOUND
                 return {"message": f"Server with name '{server_name}' not found"}
             process = self.processes[server_name]
-            async with self.config_reload_lock:
-                process.config.reload()
+            await process.config.reload()
             return {
                 "message": f"Config file reloaded successfully for server '{server_name}'"
             }
