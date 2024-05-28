@@ -1,3 +1,4 @@
+import asyncio
 import os
 import tomllib
 from collections import OrderedDict
@@ -7,6 +8,7 @@ class TomlConfig(OrderedDict):
     def __init__(self, file_path):
         super().__init__()
         self.file_path = file_path
+        self.lock = asyncio.Lock()
         self.load_toml()
 
     def load_toml(self):
@@ -19,6 +21,7 @@ class TomlConfig(OrderedDict):
                 f"Could not find config file at path {self.file_path}! Is this a server directory?"
             )
 
-    def reload(self):
-        self.clear()  # Clear the existing data in the OrderedDict
-        self.load_toml()  # Reload the TOML file from disk
+    async def reload(self):
+        async with self.lock:
+            self.clear()  # Clear the existing data in the OrderedDict
+            self.load_toml()  # Reload the TOML file from disk

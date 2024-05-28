@@ -127,6 +127,9 @@ class Process:
 
         return java_cmd
 
+    def get_server_path(self) -> str:
+        return self.server_path
+
     async def server_input(self, data: str) -> tuple[bool, str]:
         if self.protocol:
             print(f"Sending input to server STDIN: {data}")

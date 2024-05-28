@@ -57,6 +57,7 @@ class MCConsoleAPI:
         self.router.add_api_route("/output", self.console_output, methods=["GET"])
         self.router.add_api_route("/input", self.console_input, methods=["POST"])
         self.router.add_api_route("/restart", self.restart_server, methods=["POST"])
+        self.router.add_api_route("/servers", self.get_running_servers, methods=["GET"])
         self.router.add_api_route(
             "/players", self.get_connected_players, methods=["GET"]
         )
@@ -75,9 +76,6 @@ class MCConsoleAPI:
         # Setup the Database
         self.db = SQLiteDB("api_keys.db", autocommit=True)
         self.db.setup_database()
-
-        # Lock for reloading config
-        self.config_reload_lock = asyncio.Lock()
 
     async def read_root(self):
         """Web root. Just kinda here for fun"""
@@ -149,14 +147,14 @@ class MCConsoleAPI:
 
     async def console_output(
         self,
+        response: Response,
         server_name: str,
         lines: Union[int, None] = None,
         api_key=Security(validate_api_key),
-    ) -> StreamingResponse:
+    ) -> Union[StreamingResponse, dict]:
         if server_name not in self.processes:
-            raise HTTPException(
-                status_code=404, detail=f"Server with name '{server_name}' not found"
-            )
+            response.status_code = status.HTTP_404_NOT_FOUND
+            return {"message": f"Server with name '{server_name}' not found"}
         return StreamingResponse(self.serve_console_lines(server_name, lines))
 
     async def console_input(
@@ -264,10 +262,26 @@ class MCConsoleAPI:
         print("Triggered server restart")
         return {"message": "Triggered a server restart successfully"}
 
-    async def reload_config(self, api_key=Security(validate_api_key)) -> dict:
-        async with self.config_reload_lock:
-            self.config.reload()
-        return {"message": "Config file reloaded successfully"}
+    async def reload_config(
+        self,
+        response: Response,
+        server_name: Optional[str] = None,
+        api_key=Security(validate_api_key),
+    ) -> dict:
+        if server_name is None:
+            async with self.config_reload_lock:
+                self.config.reload()
+            return {"message": "Config file reloaded successfully"}
+        else:
+            if server_name not in self.processes:
+                response.status_code = status.HTTP_404_NOT_FOUND
+                return {"message": f"Server with name '{server_name}' not found"}
+            process = self.processes[server_name]
+            async with self.config_reload_lock:
+                process.config.reload()
+            return {
+                "message": f"Config file reloaded successfully for server '{server_name}'"
+            }
 
     async def generate_api_key(
         self, response: Response, name: str, api_key=Security(validate_api_key)
@@ -287,11 +301,19 @@ class MCConsoleAPI:
             }
 
     async def get_connected_players(
-        self, server_name: str, api_key=Security(validate_api_key)
+        self, response: Response, server_name: str, api_key=Security(validate_api_key)
     ) -> dict:
         if server_name not in self.processes:
-            return {"error": f"Server with name '{server_name}' not found"}
+            response.status_code = status.HTTP_404_NOT_FOUND
+            return {"message": f"Server with name '{server_name}' not found"}
         return {"players": self.processes[server_name].connected_players}
+
+    async def get_running_servers(self, api_key=Security(validate_api_key)) -> dict:
+        running_servers = []
+        for server_name, process in self.processes.items():
+            server_path = process.get_server_path()
+            running_servers.append({"name": server_name, "path": server_path})
+        return {"servers": running_servers}
 
 
 async def main(args: argparse.Namespace):
