@@ -13,10 +13,12 @@ class Process:
     def __init__(
         self,
         server_path: str,
+        server_name: str,
         exit_future: Optional[typing.Coroutine] = None,
     ):
         # Ensure we always get the absolute path to the server directory
         self.server_path = os.path.abspath(server_path)
+        self.server_name = server_name
         self.exit_future = exit_future
         self.loop = asyncio.get_event_loop()
 
@@ -59,6 +61,8 @@ class Process:
 
         # Server started flag
         self.running = True
+        # Server restarting flag
+        self.restarting = False
 
         # Check the configuration for automatic restarts
         if self.config["minecraft"]["restarts"]["auto_restart"]:
@@ -87,6 +91,7 @@ class Process:
         return True
 
     async def restart_server(self):
+        self.restarting = True
         if not self.running:
             print("Server is not currently running. Starting the server instead.")
             await self.start_server()
@@ -101,6 +106,7 @@ class Process:
         # Start the server again
         await self.start_server()
         print("Server restarted successfully.")
+        self.restarting = False
 
     async def build_java_command(self) -> list:
         """Builds a java command from the config"""
@@ -153,9 +159,8 @@ class Process:
             await self.restart_server()
         else:
             print("Server exited normally.")
-
-        if self.exit_future is not None:
-            await self.exit_future(exit_code)
+        if self.exit_future is not None and not self.restarting:
+            await self.exit_future(self.server_name, exit_code)
 
     async def send_restart_reminder(self, interval: int):
         time_to_restart = generate_time_message(interval)

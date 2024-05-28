@@ -101,7 +101,7 @@ class MCConsoleAPI:
         server_name: str,
         api_key=Security(validate_api_key),
     ) -> dict:
-        process = Process(server_path, self.server_stopped)
+        process = Process(server_path, server_name, self.server_stopped)
         started = await process.start_server()
 
         if started:
@@ -151,7 +151,7 @@ class MCConsoleAPI:
         server_name: str,
         lines: Union[int, None] = None,
         api_key=Security(validate_api_key),
-    ) -> Union[StreamingResponse, dict]:
+    ) -> StreamingResponse:
         if server_name not in self.processes:
             response.status_code = status.HTTP_404_NOT_FOUND
             return {"message": f"Server with name '{server_name}' not found"}
@@ -178,9 +178,11 @@ class MCConsoleAPI:
                 "line": line,
             }
 
-    async def server_stopped(self, exit_code: int):
+    async def server_stopped(self, server_name: str, exit_code: int):
         """Called when a Minecraft server instance exits"""
-        print(f"Minecraft server has stopped with exit code: {exit_code}")
+        print(f"Minecraft server: {server_name} has stopped with exit code: {exit_code}")
+        if server_name in self.processes:
+            del self.processes[server_name]
 
     async def serve_console_lines(
         self, server_name: str, lines: Union[int, None]
