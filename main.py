@@ -137,7 +137,7 @@ class MCConsoleAPI:
             timeout -= 1
 
         if not process.running:
-            del self.processes[server_name]
+            self.processes.pop(server_name, None)
             return {"message": f"Server with name '{server_name}' stopped successfully"}
         else:
             response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -182,7 +182,7 @@ class MCConsoleAPI:
         """Called when a Minecraft server instance exits"""
         print(f"Minecraft server: {server_name} has stopped with exit code: {exit_code}")
         if server_name in self.processes:
-            del self.processes[server_name]
+            self.processes.pop(server_name, None)
 
     async def serve_console_lines(
         self, server_name: str, lines: Union[int, None]
