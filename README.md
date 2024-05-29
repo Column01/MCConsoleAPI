@@ -2,9 +2,8 @@
 
 MCConsoleAPI is an HTTP API wrapper for Minecraft servers that gives you the power to create automation and tools for minecraft servers without needing to know a specific programming language. Make simple HTTP requests to the backend and accomplish any task you want in any language you want!
 
-## Note
-
-This project is a WIP and is not guaranteed to be secure in any way. Steps have been taken to mitigate some attack vectors, but no application is 100% safe. This software is provided AS IS without warranty of any kind. Any issues you have, please report them on the [issues](https://github.com/Column01/MCConsoleAPI/issues) page with any relevant information.
+> [!NOTE]
+> This project is a WIP and is not guaranteed to be secure in any way. Steps have been taken to mitigate some attack vectors, but no application is 100% safe. This software is provided AS IS without warranty of any kind. Any issues you have, please report them on the [issues](https://github.com/Column01/MCConsoleAPI/issues) page with any relevant information.
 
 ## Setup and Installation
 
