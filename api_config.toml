@@ -3,3 +3,15 @@
 host = "127.0.0.1"
 port = 5000
 log_level = "info"
+
+# Add servers you want to start with the API like this
+# If you are on windows, make sure to use two slashes "like\\this" or else the program will crash
+[[servers]]
+path = "C:\\Users\\colin\\Documents\\_GithubRepos\\MCConsoleAPI\\test_17"
+name = "test"
+autostart = true
+
+[[servers]]
+path = "C:\\path\\to\\server2"
+name = "server2"
+autostart = false

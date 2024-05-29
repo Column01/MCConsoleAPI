@@ -92,7 +92,29 @@ class MCConsoleAPI:
             log_level=self.config["general"]["log_level"],
         )
         self.server = uvicorn.Server(server_config)
+
+        # Start servers on startup
+        await self.start_servers_on_startup()
+
         await self.server.serve()
+
+    async def start_servers_on_startup(self):
+        servers = self.config.get("servers", [])
+        for server in servers:
+            server_path = server["path"]
+            server_name = server["name"]
+            autostart = server.get("autostart", False)
+
+            if autostart:
+                process = Process(server_path, server_name, self.server_stopped)
+                started = await process.start_server()
+
+                if started:
+                    self.processes[server_name] = process
+                    print(f"Minecraft server started successfully with name: {server_name}")
+                else:
+                    jar_pattern = process.config["minecraft"]["server_jar"]
+                    print(f"Failed to start the Minecraft server '{server_name}'. Please ensure that a server jar matching the pattern '{jar_pattern}' exists in the server path '{server_path}'")
 
     async def start_server(
         self,
