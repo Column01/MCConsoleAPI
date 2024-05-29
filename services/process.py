@@ -38,6 +38,9 @@ class Process:
         # Reload the config before using it
         await self.config.reload()
 
+        # Empty connected players list
+        self.connected_players = []
+
         # Get the java command
         try:
             java_cmd = await self.build_java_command()
@@ -184,17 +187,19 @@ class Process:
         # Check for player connection
         connect_match = connect_pattern.search(output)
         if connect_match:
-            player = connect_match.group(1)
-            print(f"Player connected: {player}")
-            self.connected_players.append(player)
+            username = connect_match.group("username")
+            ip = connect_match.group("ip")
+            print(f"Player connected: {username} ({ip})")
+            self.connected_players.append(username)
 
         # Check for player disconnection
         disconnect_match = disconnect_pattern.search(output)
         if disconnect_match:
-            player = disconnect_match.group(1)
-            print(f"Player disconnected: {player}")
-            if player in self.connected_players:
-                self.connected_players.remove(player)
+            username = disconnect_match.group("username")
+            reason = disconnect_match.group("reason")
+            print(f"{username} lost connection: {reason}")
+            if username in self.connected_players:
+                self.connected_players.remove(username)
 
 
 class ProcessProtocol(SubprocessProtocol):
