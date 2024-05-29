@@ -270,6 +270,7 @@ class MCConsoleAPI:
             response.status_code = status.HTTP_400_BAD_REQUEST
             return {"message": "No Minecraft server instances are currently running"}
 
+        process = self.processes[server_name]
         if time_delta is not None:
             if time_delta <= 0:
                 response.status_code = status.HTTP_400_BAD_REQUEST
@@ -281,7 +282,6 @@ class MCConsoleAPI:
 
             msg = f"say WARNING: PLANNED SERVER RESTART IN {time_to_restart}"
 
-            process = self.processes[server_name]
             await process.server_input(msg)
 
             # Schedule the restart and reminder tasks using asyncio
