@@ -53,14 +53,14 @@ class MCConsoleAPI:
         self.router = APIRouter()
         self.router.add_api_route("/", self.read_root, methods=["GET"])
         self.router.add_api_route("/start_server", self.start_server, methods=["POST"])
-        self.router.add_api_route("/stop", self.stop_server, methods=["POST"])
+        self.router.add_api_route("/stop_server", self.stop_server, methods=["POST"])
         self.router.add_api_route("/output", self.console_output, methods=["GET"])
         self.router.add_api_route("/input", self.console_input, methods=["POST"])
         self.router.add_api_route("/restart", self.restart_server, methods=["POST"])
-        self.router.add_api_route("/servers", self.get_running_servers, methods=["GET"])
         self.router.add_api_route(
             "/players", self.get_connected_players, methods=["GET"]
         )
+        self.router.add_api_route("/servers", self.get_running_servers, methods=["GET"])
         self.router.add_api_route(
             "/reload_config", self.reload_config, methods=["POST"]
         )
@@ -111,10 +111,14 @@ class MCConsoleAPI:
 
                 if started:
                     self.processes[server_name] = process
-                    print(f"Minecraft server started successfully with name: {server_name}")
+                    print(
+                        f"Minecraft server started successfully with name: {server_name}"
+                    )
                 else:
                     jar_pattern = process.config["minecraft"]["server_jar"]
-                    print(f"Failed to start the Minecraft server '{server_name}'. Please ensure that a server jar matching the pattern '{jar_pattern}' exists in the server path '{server_path}'")
+                    print(
+                        f"Failed to start the Minecraft server '{server_name}'. Please ensure that a server jar matching the pattern '{jar_pattern}' exists in the server path '{server_path}'"
+                    )
 
     async def start_server(
         self,
@@ -123,6 +127,7 @@ class MCConsoleAPI:
         server_path: Optional[str] = None,
         api_key=Security(validate_api_key),
     ) -> dict:
+        """Starts a server using the server_name and path. If no path is set, it tries get the path from the API config."""
         if server_path is None:
             # Try to get the server info from the config file
             servers = self.config.get("servers", [])
@@ -152,6 +157,7 @@ class MCConsoleAPI:
     async def stop_server(
         self, response: Response, server_name: str, api_key=Security(validate_api_key)
     ) -> dict:
+        """Stop a server with server_name"""
         if server_name not in self.processes:
             response.status_code = status.HTTP_404_NOT_FOUND
             return {"message": f"Server with name '{server_name}' not found"}
@@ -185,6 +191,7 @@ class MCConsoleAPI:
         lines: Union[int, None] = None,
         api_key=Security(validate_api_key),
     ) -> StreamingResponse:
+        """Get output from the server console"""
         if server_name not in self.processes:
             response.status_code = status.HTTP_404_NOT_FOUND
             return {"message": f"Server with name '{server_name}' not found"}
@@ -197,6 +204,7 @@ class MCConsoleAPI:
         command: str,
         api_key=Security(validate_api_key),
     ) -> dict:
+        """Send input to the server console"""
         if server_name not in self.processes:
             response.status_code = status.HTTP_404_NOT_FOUND
             return {"message": f"Server with name '{server_name}' not found"}
@@ -213,13 +221,16 @@ class MCConsoleAPI:
 
     async def server_stopped(self, server_name: str, exit_code: int):
         """Called when a Minecraft server instance exits"""
-        print(f"Minecraft server: {server_name} has stopped with exit code: {exit_code}")
+        print(
+            f"Minecraft server: {server_name} has stopped with exit code: {exit_code}"
+        )
         if server_name in self.processes:
             self.processes.pop(server_name, None)
 
     async def serve_console_lines(
         self, server_name: str, lines: Union[int, None]
     ) -> AsyncGenerator[str, None]:
+        """Internal function to stream console lines through /output"""
         if server_name not in self.processes:
             yield json.dumps({"error": f"Server with name '{server_name}' not found"})
             return
@@ -305,6 +316,7 @@ class MCConsoleAPI:
         server_name: Optional[str] = None,
         api_key=Security(validate_api_key),
     ) -> dict:
+        """Reloads server_name's config or the API config if none is specified"""
         if server_name is None:
             await self.config.reload()
             return {"message": "Config file reloaded successfully"}
@@ -321,6 +333,7 @@ class MCConsoleAPI:
     async def generate_api_key(
         self, response: Response, name: str, api_key=Security(validate_api_key)
     ) -> dict:
+        """Generates an API key. Requires an Admin API key"""
         if not self.db.is_admin_api_key(api_key):
             response.status_code = status.HTTP_403_FORBIDDEN
             return {"message": "Only the admin API key can generate new API keys."}
@@ -338,12 +351,14 @@ class MCConsoleAPI:
     async def get_connected_players(
         self, response: Response, server_name: str, api_key=Security(validate_api_key)
     ) -> dict:
+        """Get a list of connected players to server_name"""
         if server_name not in self.processes:
             response.status_code = status.HTTP_404_NOT_FOUND
             return {"message": f"Server with name '{server_name}' not found"}
         return {"players": self.processes[server_name].connected_players}
 
     async def get_running_servers(self, api_key=Security(validate_api_key)) -> dict:
+        """Get a list of running servers and their file paths"""
         running_servers = []
         for server_name, process in self.processes.items():
             server_path = process.get_server_path()

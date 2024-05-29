@@ -1,7 +1,8 @@
 import asyncio
 import os
-import toml
 from collections import OrderedDict
+
+import toml
 
 
 class TomlConfig(OrderedDict):
