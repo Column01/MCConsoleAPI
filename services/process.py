@@ -31,15 +31,18 @@ class Process:
 
         # List of connected players
         self.connected_players = []
-
+        # Player chat history
+        self.chat_history = []
         self.running = False
 
     async def start_server(self) -> bool:
         # Reload the config before using it
-        await self.config.reload()
+        await self.reload_config()
 
         # Empty connected players list
         self.connected_players = []
+        # Empty chat_history list
+        self.chat_history = []
 
         # Get the java command
         try:
@@ -47,6 +50,7 @@ class Process:
         except FileNotFoundError as e:
             print(f"An error occurred when building the Java command: {e}")
             return False
+
         # Build the process protocol
         self.protocol = ProcessProtocol(self.proc_closed)
         self.protocol.register_console_consumer(self.console_output)
@@ -172,29 +176,40 @@ class Process:
         msg = f"say WARNING: PLANNED SERVER RESTART IN {time_to_restart}"
         await self.server_input(msg)
 
+    async def reload_config(self):
+        self.config.reload()
+
+        # Get the regular expression patterns from the configuration
+        self.connect_pattern = re.compile(
+            self.config["minecraft"]["console"]["player_connected"]
+        )
+        self.disconnect_pattern = re.compile(
+            self.config["minecraft"]["console"]["player_disconnected"]
+        )
+        self.chat_pattern = re.compile(self.config["minecraft"]["console"]["player_chat"])
+
     async def console_output(self, output: str):
         """Callback used to handle output from the server console"""
         print(output)
 
-        # Get the regular expression patterns from the configuration
-        connect_pattern = re.compile(
-            self.config["minecraft"]["console"]["player_connected"]
-        )
-        disconnect_pattern = re.compile(
-            self.config["minecraft"]["console"]["player_disconnected"]
-        )
+        # Check for chat messages
+        chat_match = self.chat_pattern.search(output)
+        if chat_match:
+            username = chat_match.group("username")
+            message = chat_match.group("message")
+            self.chat_history.append((username, message))
 
         # Check for player connection
-        connect_match = connect_pattern.search(output)
-        if connect_match:
+        connect_match = self.connect_pattern.search(output)
+        if connect_match and not chat_match:
             username = connect_match.group("username")
             ip = connect_match.group("ip")
             print(f"Player connected: {username} ({ip})")
             self.connected_players.append(username)
 
         # Check for player disconnection
-        disconnect_match = disconnect_pattern.search(output)
-        if disconnect_match:
+        disconnect_match = self.disconnect_pattern.search(output)
+        if disconnect_match and not chat_match:
             username = disconnect_match.group("username")
             reason = disconnect_match.group("reason")
             print(f"{username} lost connection: {reason}")

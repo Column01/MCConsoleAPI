@@ -21,6 +21,10 @@ restart_interval = 6
 alert_intervals = [3600, 1800, 300, 30]
 
 [minecraft.console]
-# Section of regexes for handling server output for various things
+# Section of regexes for handling server output for various things. 
+# You may need to adjust these if you install server software like minecraftforge
 player_connected = '(?P<username>[\w]+)\[\/(?P<ip>\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d+)] logged in with entity id [0-9]+ at \(.*\)'
 player_disconnected = '(?P<username>[A-Za-z0-9_]{1,16}) lost connection: (?P<reason>.+)'
+# If you have a plugin that changes player chat, you will need to change this to get chat history working.
+# It's also used to stop people from triggering the above two regexes using chat messages so this is important!
+player_chat = '\]: <(?P<username>[A-Za-z0-9_]{1,16})> (?P<message>.*?)$'
