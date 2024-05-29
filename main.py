@@ -325,7 +325,7 @@ class MCConsoleAPI:
                 response.status_code = status.HTTP_404_NOT_FOUND
                 return {"message": f"Server with name '{server_name}' not found"}
             process = self.processes[server_name]
-            await process.config.reload()
+            await process.reload_config()
             return {
                 "message": f"Config file reloaded successfully for server '{server_name}'"
             }
