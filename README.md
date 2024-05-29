@@ -22,8 +22,8 @@ MCConsoleAPI is an HTTP API wrapper for Minecraft servers that gives you the pow
 
 ### Configuration
 
-1. Copy `config.toml` and place it into the root directory of your server (where `server.properties` and the server jar are located)
-2. Open the `config.toml` in your text editor of choice, verify all the settings are set how you would like.
+1. Copy `config_template.toml` and place it into the root directory of your server (where `server.properties` and the server jar are located) and rename it to `config.toml`
+2. Open the newly copied and renamed `config.toml` in your text editor of choice, verify all the settings are set how you would like.
     - Things should be commented as well as I can (and if you need clarification, please [create an issue](https://github.com/Column01/MCConsoleAPI/issues) and ask)
     - The main things to check here are the server `host` and the `port`, these are the IP and Port the API will use to serve HTTP requests. This is also the info you need to develop any tools around it
     - After that, ensure the `java_path`, `server_jar` and `jvm_args` have anything you need setup for your instance.

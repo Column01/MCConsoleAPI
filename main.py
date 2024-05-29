@@ -110,7 +110,7 @@ class MCConsoleAPI:
                 "message": f"Minecraft server started successfully with name: {server_name}"
             }
         else:
-            jar_pattern = self.config["minecraft"]["server_jar"]
+            jar_pattern = process.config["minecraft"]["server_jar"]
             response.status_code = status.HTTP_400_BAD_REQUEST
             return {
                 "message": f"Failed to start the Minecraft server. Please ensure that a server jar matching the pattern '{jar_pattern}' exists in the server path '{server_path}'"
@@ -236,23 +236,25 @@ class MCConsoleAPI:
             time_to_restart = generate_time_message(time_delta)
 
             msg = f"say WARNING: PLANNED SERVER RESTART IN {time_to_restart}"
-            await self.processes[server_name].server_input(msg)
+
+            process = self.processes[server_name]
+            await process.server_input(msg)
 
             # Schedule the restart and reminder tasks using asyncio
             loop = asyncio.get_event_loop()
             loop.call_later(
                 time_delta,
                 asyncio.create_task,
-                self.processes[server_name].restart_server(),
+                process.restart_server(),
             )
 
-            alert_intervals = self.config["minecraft"]["restarts"]["alert_intervals"]
+            alert_intervals = process.config["minecraft"]["restarts"]["alert_intervals"]
             for interval in alert_intervals:
                 if time_delta > interval:
                     loop.call_later(
                         time_delta - interval,
                         asyncio.create_task,
-                        self.processes[server_name].send_restart_reminder(interval),
+                        process.send_restart_reminder(interval),
                     )
 
             msg2 = f"Scheduled a server restart in {time_to_restart}"
@@ -260,7 +262,7 @@ class MCConsoleAPI:
             return {"message": msg2}
 
         # If no time delta is provided, restart immediately
-        await self.processes[server_name].restart_server()
+        await process.restart_server()
         print("Triggered server restart")
         return {"message": "Triggered a server restart successfully"}
 
@@ -318,7 +320,7 @@ class MCConsoleAPI:
 
 async def main(args: argparse.Namespace):
     # Load the server config file
-    config = TomlConfig("config.toml")
+    config = TomlConfig("api_config.toml")
 
     # Setup the API and start the server
     api = MCConsoleAPI(config)
