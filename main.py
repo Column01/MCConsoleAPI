@@ -119,10 +119,21 @@ class MCConsoleAPI:
     async def start_server(
         self,
         response: Response,
-        server_path: str,
         server_name: str,
+        server_path: Optional[str] = None,
         api_key=Security(validate_api_key),
     ) -> dict:
+        if server_path is None:
+            # Try to get the server info from the config file
+            servers = self.config.get("servers", [])
+            server_info = next((s for s in servers if s["name"] == server_name), None)
+            if server_info is None:
+                response.status_code = status.HTTP_404_NOT_FOUND
+                return {
+                    "message": f"A server doesn't exist with the name '{server_name}' in the API config. Please specify a file path to start the server"
+                }
+            server_path = server_info["path"]
+
         process = Process(server_path, server_name, self.server_stopped)
         started = await process.start_server()
 
