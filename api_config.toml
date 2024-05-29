@@ -9,7 +9,7 @@ log_level = "info"
 [[servers]]
 path = "C:\\Users\\colin\\Documents\\_GithubRepos\\MCConsoleAPI\\test_17"
 name = "test"
-autostart = true
+autostart = false
 
 [[servers]]
 path = "C:\\path\\to\\server2"
