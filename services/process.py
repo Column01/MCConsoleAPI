@@ -5,8 +5,8 @@ import typing
 from asyncio import SubprocessProtocol, transports
 from typing import Optional, Union
 
-from config import TomlConfig
-from util import LimitedList, find_jar, generate_time_message
+from utils.config import TomlConfig
+from utils.util import LimitedList, find_jar, generate_time_message
 
 
 class Process:

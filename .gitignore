@@ -2,4 +2,4 @@
 APIvenv
 test_*
 api_key.txt
-api_keys.db
+*.db
