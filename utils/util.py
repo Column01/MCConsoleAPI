@@ -2,7 +2,8 @@ import glob
 
 
 class LimitedList(list):
-    """ Custom class for a list that has a max length to it """
+    """Custom class for a list that has a max length to it"""
+
     @property
     def maxlen(self):
         return self._maxlen
