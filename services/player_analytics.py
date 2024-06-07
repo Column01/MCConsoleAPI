@@ -61,6 +61,9 @@ class PlayerAnalytics:
                 session_len=int(session_len),
             )
             self.temp_lookup.pop(uuid, None)
+            # Invalidate the player's cached UUID to fix issues regarding name changes
+            # Lowers the cache's effectiveness a lot but makes the code safer
+            await player_fetcher.invalidate_player_cache(username)
             print(
                 f"Player {username} with UUID {uuid} disconnected at {disconnect_time}"
             )

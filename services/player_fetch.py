@@ -22,8 +22,9 @@ class PlayerFetcher:
             Optional[dict]: The player's UUID and name data
         """
         # Check our UUID cache for the user, return it if it exists
-        if username in self.cache:
-            return self.cache[username]
+        data = self.cache.get(username, None)
+        if data:
+            return data
         async with aiohttp.ClientSession() as session:
             url = self.url_template.format(username=username)
             data = await self.fetch_player_data(session, url)
@@ -72,6 +73,14 @@ class PlayerFetcher:
                 f"Failed to retrieve data for player: {url}. Status code: {response.status}"
             )
             return None
+
+    async def invalidate_player_cache(self, username: str):
+        """Invalidate a player's cached UUID. Called when they disconnect to ensure no messed up UUID mappings
+
+        Args:
+            username (str): The username to invalidate the cache of
+        """
+        self.cache.pop(username, None)
 
 
 # Shared class reference
