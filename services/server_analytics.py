@@ -1,5 +1,6 @@
 import json
 from datetime import datetime
+from typing import Any, List, Optional
 
 from services.player_fetch import player_fetcher
 from utils.database import ServerAnalyticsDB
@@ -12,7 +13,13 @@ class ServerAnalytics:
         self.cursor = self.db.cursor
         self.db.setup_database(server_name)
 
-    async def log_player_count(self, player_count, player_list):
+    async def log_player_count(self, player_count: int, player_list: List[str]):
+        """Logs the player count for the server
+
+        Args:
+            player_count (int): Number of players
+            player_list (List[str]): List of players connected
+        """
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         players_data = await player_fetcher.get_players_data(player_list)
         player_list_str = json.dumps(players_data)
@@ -25,7 +32,16 @@ class ServerAnalytics:
             (timestamp, player_count, player_list_str),
         )
 
-    async def get_player_counts(self, start_date=None, end_date=None):
+    async def get_player_counts(self, start_date: Optional[str] = None, end_date: Optional[str] = None) -> List[Any]:
+        """Gets the player counts for a server in the given time range
+
+        Args:
+            start_date (Optional[str], optional): A start timestamp that looks like "%Y-%m-%d %H:%M:%S". Defaults to None.
+            end_date (Optional[str], optional): An end timestamp that looks like "%Y-%m-%d %H:%M:%S". Defaults to None.
+
+        Returns:
+            List[Any]: Some results or nothing
+        """
         query = f"SELECT timestamp, player_count, player_list FROM {self.server_name}_player_counts"
         params = []
 
