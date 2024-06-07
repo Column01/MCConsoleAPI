@@ -10,12 +10,17 @@ class PlayerFetcher:
         )
 
         self.url_template = "https://playerdb.co/api/player/minecraft/{username}"
+        self.cache = {}
 
     async def get_player_data(self, username) -> Optional[dict]:
+        # Check our UUID cache for the user, return it if it exists
+        if username in self.cache:
+            return self.cache[username]
         async with aiohttp.ClientSession() as session:
             url = self.url_template.format(username=username)
             data = await self.fetch_player_data(session, url)
             if data:
+                self.cache[username] = data
                 return data
 
     async def get_players_data(self, player_list) -> List[dict]:
