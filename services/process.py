@@ -181,7 +181,7 @@ class Process:
         await self.server_input(msg)
 
     async def reload_config(self):
-        self.config.reload()
+        await self.config.reload()
 
         # Get the regular expression patterns from the configuration
         self.connect_pattern = re.compile(
