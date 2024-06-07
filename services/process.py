@@ -174,6 +174,7 @@ class Process:
             print("Server exited normally.")
 
         await self.analytics.log_player_count(0, [])
+        await self.player_analytics.server_stopping()
         # Run exit future if it exists and server isn't restarting or running
         if self.exit_future is not None and not self.restarting and not self.running:
             await self.exit_future(self.server_name, exit_code)
