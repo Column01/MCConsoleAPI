@@ -10,7 +10,7 @@ from fastapi.security import APIKeyHeader, APIKeyQuery
 
 from services.process import Process
 from utils.config import TomlConfig
-from utils.database import SQLiteDB
+from utils.database import ApiDB
 from utils.util import generate_time_message
 
 
@@ -34,7 +34,7 @@ def validate_api_key(
     Returns:
         str: The API key used to authenticate
     """
-    db = SQLiteDB("api_keys.db", autocommit=True)
+    db = ApiDB("api_keys.db", autocommit=True)
     if api_key_query and db.has_api_key(api_key_query):
         return api_key_query
     if api_key_header and db.has_api_key(api_key_header):
@@ -75,7 +75,7 @@ class MCConsoleAPI:
         self.processes = {}
 
         # Setup the Database
-        self.db = SQLiteDB("api_keys.db", autocommit=True)
+        self.db = ApiDB("api_keys.db", autocommit=True)
         self.db.setup_database()
 
     async def read_root(self):

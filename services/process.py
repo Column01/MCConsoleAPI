@@ -6,6 +6,7 @@ from asyncio import SubprocessProtocol, transports
 from typing import Optional, Union
 
 from services.server_analytics import ServerAnalytics
+from services.player_analytics import PlayerAnalytics
 from utils.config import TomlConfig
 from utils.util import LimitedList, find_jar, generate_time_message
 
@@ -31,6 +32,8 @@ class Process:
             print("Error when loading the config file for the server as it was not found!")
 
         self.analytics = ServerAnalytics(self.server_name)
+
+        self.player_analytics = PlayerAnalytics()
 
         # List of connected players
         self.connected_players = []
@@ -211,6 +214,7 @@ class Process:
             print(f"Player connected: {username} ({ip})")
             self.connected_players.append(username)
             await self.analytics.log_player_count(len(self.connected_players), self.connected_players)
+            await self.player_analytics.on_player_connect(username, self.server_name, ip)
 
         # Check for player disconnection
         disconnect_match = self.disconnect_pattern.search(output)
@@ -221,9 +225,11 @@ class Process:
             if username in self.connected_players:
                 self.connected_players.remove(username)
             await self.analytics.log_player_count(len(self.connected_players), self.connected_players)
+            await self.player_analytics.on_player_disconnect(username)
 
 
 class ProcessProtocol(SubprocessProtocol):
+
     """Process Protocol that handles server process I/O"""
 
     def __init__(self, exit_future: typing.Coroutine):
