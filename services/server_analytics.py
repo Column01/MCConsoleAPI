@@ -1,6 +1,6 @@
 import json
 from datetime import datetime
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 from services.player_fetch import player_fetcher
 from utils.database import ServerAnalyticsDB
@@ -32,7 +32,9 @@ class ServerAnalytics:
             (timestamp, player_count, player_list_str),
         )
 
-    async def get_player_counts(self, start_date: Optional[str] = None, end_date: Optional[str] = None) -> List[Any]:
+    async def get_player_counts(
+        self, start_date: Optional[str] = None, end_date: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         """Gets the player counts for a server in the given time range
 
         Args:
@@ -40,7 +42,7 @@ class ServerAnalytics:
             end_date (Optional[str], optional): An end timestamp that looks like "%Y-%m-%d %H:%M:%S". Defaults to None.
 
         Returns:
-            List[Any]: Some results or nothing
+            List[Dict[str, Any]]: A list of dictionaries containing timestamp, player_count, and online_players
         """
         query = f"SELECT timestamp, player_count, player_list FROM {self.server_name}_player_counts"
         params = []
@@ -58,4 +60,21 @@ class ServerAnalytics:
 
         query += " ORDER BY timestamp"
 
-        return self.db.fetch_all(query, params)
+        results = self.db.fetch_all(query, params)
+
+        # Convert the results to a list of dictionaries
+        player_counts = []
+        for result in results:
+            timestamp, player_count, player_list_str = result
+            player_list = json.loads(
+                player_list_str
+            )  # Safely convert the player_list string to a list
+            player_counts.append(
+                {
+                    "timestamp": timestamp,
+                    "player_count": player_count,
+                    "online_players": player_list,
+                }
+            )
+
+        return player_counts
