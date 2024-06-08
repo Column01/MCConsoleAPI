@@ -125,7 +125,7 @@ class PlayerAnalyticsDB(SQLiteDB):
         self.commit()
         print("Connection to Player Analytics Database established.")
 
-    def insert_player_entry(
+    async def insert_player_entry(
         self,
         uuid: str,
         username: str,
@@ -156,3 +156,44 @@ class PlayerAnalyticsDB(SQLiteDB):
             print(f"Player entry inserted for UUID: {uuid}")
         except sqlite3.IntegrityError:
             print(f"Error: Player entry with UUID {uuid} already exists.")
+
+    async def get_player_sessions(
+        self,
+        uuid: str,
+        server_name: Optional[str] = None,
+        start_time: Optional[str] = None,
+        end_time: Optional[str] = None,
+    ) -> List[dict]:
+        query = "SELECT * FROM player_sessions WHERE uuid = ?"
+        params = (uuid,)
+
+        if server_name:
+            query += " AND server_name = ?"
+            params += (server_name,)
+
+        if start_time and end_time:
+            query += " AND connect_time BETWEEN ? AND ?"
+            params += (start_time, end_time)
+        elif start_time:
+            query += " AND connect_time >= ?"
+            params += (start_time,)
+        elif end_time:
+            query += " AND connect_time <= ?"
+            params += (end_time,)
+
+        rows = self.fetch_all(query, params)
+
+        player_sessions = []
+        for row in rows:
+            session = {
+                "uuid": row[0],
+                "username": row[1],
+                "ip": row[2],
+                "server_name": row[3],
+                "connect_time": row[4],
+                "disconnect_time": row[5],
+                "session_len": row[6],
+            }
+            player_sessions.append(session)
+
+        return player_sessions

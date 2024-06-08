@@ -51,7 +51,7 @@ class PlayerAnalytics:
                 - datetime.strptime(connect_time, "%Y-%m-%d %H:%M:%S")
             ).total_seconds()
 
-            self.db.insert_player_entry(
+            await self.db.insert_player_entry(
                 uuid=uuid,
                 username=username,
                 ip=ip,

@@ -8,11 +8,11 @@ from fastapi import APIRouter, FastAPI, HTTPException, Response, Security, statu
 from fastapi.responses import StreamingResponse
 from fastapi.security import APIKeyHeader, APIKeyQuery
 
+from services.player_fetch import player_fetcher
 from services.process import Process
 from utils.config import TomlConfig
-from utils.database import ApiDB
+from utils.database import ApiDB, PlayerAnalyticsDB
 from utils.util import generate_time_message
-
 
 api_key_query = APIKeyQuery(name="api_key", auto_error=False)
 api_key_header = APIKeyHeader(name="x-api-key", auto_error=False)
@@ -61,7 +61,12 @@ class MCConsoleAPI:
         self.router.add_api_route(
             "/players", self.get_connected_players, methods=["GET"]
         )
-        self.router.add_api_route("/server_stats", self.get_server_stats, methods=["GET"])
+        self.router.add_api_route(
+            "/player_sessions", self.get_player_sessions, methods=["GET"]
+        )
+        self.router.add_api_route(
+            "/server_stats", self.get_server_stats, methods=["GET"]
+        )
         self.router.add_api_route("/servers", self.get_running_servers, methods=["GET"])
         self.router.add_api_route(
             "/reload_config", self.reload_config, methods=["POST"]
@@ -78,6 +83,9 @@ class MCConsoleAPI:
         # Setup the Database
         self.db = ApiDB("api_keys.db", autocommit=True)
         self.db.setup_database()
+
+        # Player analytics DB
+        self.player_analytics = PlayerAnalyticsDB(autocommit=True)
 
     async def read_root(self):
         """Web root. Just kinda here for fun"""
@@ -367,7 +375,12 @@ class MCConsoleAPI:
         end_date: Optional[str] = None,
         api_key=Security(validate_api_key),
     ) -> dict:
-        """Get server stats for a particular server"""
+        """
+        Get server stats for a particular server.
+
+        The start_date and end_date parameters are optional and should be provided in the format "YYYY-MM-DD HH:MM:SS".
+        If not provided, the stats for the entire available time range will be returned.
+        """
         if server_name not in self.processes:
             response.status_code = status.HTTP_404_NOT_FOUND
             return {"message": f"Server with name '{server_name}' not found"}
@@ -375,14 +388,60 @@ class MCConsoleAPI:
         process = self.processes[server_name]
         if not hasattr(process, "server_analytics"):
             response.status_code = status.HTTP_400_BAD_REQUEST
-            return {"message": f"Server with name '{server_name}' does not have analytics enabled"}
+            return {
+                "message": f"Server with name '{server_name}' does not have analytics enabled"
+            }
 
         try:
-            player_counts = await process.server_analytics.get_player_counts(start_date, end_date)
+            player_counts = await process.server_analytics.get_player_counts(
+                start_date, end_date
+            )
             return {"player_counts": player_counts}
         except Exception as e:
             response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
             return {"message": f"Error retrieving server stats: {str(e)}"}
+
+    async def get_player_sessions(
+        self,
+        response: Response,
+        uuid: Optional[str] = None,
+        username: Optional[str] = None,
+        server_name: Optional[str] = None,
+        start_time: Optional[str] = None,
+        end_time: Optional[str] = None,
+        api_key=Security(validate_api_key),
+    ) -> dict:
+        """
+        Get player sessions for a specific player identified by UUID OR a username.
+
+        Specify a server name to get sessions for that server, or leave it blank for getting global stats.
+
+        The start_time and end_time parameters are optional and should be provided in the format "YYYY-MM-DD HH:MM:SS".
+        If not provided, the sessions for the entire available time range will be returned.
+        """
+        if not uuid and not username:
+            response.status_code = status.HTTP_400_BAD_REQUEST
+            return {"message": "Please provide either a UUID or username to query player sessions."}
+
+        if uuid and username:
+            response.status_code = status.HTTP_400_BAD_REQUEST
+            return {"message": "Please provide either a UUID or username, not both."}
+
+        if username:
+            player_data = await player_fetcher.get_player_data(username)
+            if player_data is None:
+                response.status_code = status.HTTP_404_NOT_FOUND
+                return {"message": f"Player with username '{username}' not found."}
+            uuid = player_data["uuid"]
+
+        try:
+            player_sessions = await self.player_analytics.get_player_sessions(
+                uuid, server_name, start_time, end_time
+            )
+            return {"player_sessions": player_sessions}
+        except Exception as e:
+            response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+            return {"message": f"Error retrieving player sessions: {str(e)}"}
 
     async def get_running_servers(self, api_key=Security(validate_api_key)) -> dict:
         """Get a list of running servers and their file paths"""
