@@ -58,4 +58,4 @@ class ServerAnalytics:
 
         query += " ORDER BY timestamp"
 
-        return self.cursor.fetch_all(query, params)
+        return self.db.fetch_all(query, params)

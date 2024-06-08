@@ -31,7 +31,7 @@ class Process:
         except FileNotFoundError:
             print("Error when loading the config file for the server as it was not found!")
 
-        self.analytics = ServerAnalytics(self.server_name)
+        self.server_analytics = ServerAnalytics(self.server_name)
 
         self.player_analytics = PlayerAnalytics()
 
@@ -69,7 +69,7 @@ class Process:
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
-            cwd=self.server_path  # start proccess in server dir
+            cwd=self.server_path  # start process in server dir
         )
 
         # Server started flag
@@ -173,7 +173,7 @@ class Process:
         else:
             print("Server exited normally.")
 
-        await self.analytics.log_player_count(0, [])
+        await self.server_analytics.log_player_count(0, [])
         await self.player_analytics.server_stopping()
         # Run exit future if it exists and server isn't restarting or running
         if self.exit_future is not None and not self.restarting and not self.running:
@@ -214,7 +214,7 @@ class Process:
             ip = connect_match.group("ip")
             print(f"Player connected: {username} ({ip})")
             self.connected_players.append(username)
-            await self.analytics.log_player_count(len(self.connected_players), self.connected_players)
+            await self.server_analytics.log_player_count(len(self.connected_players), self.connected_players)
             await self.player_analytics.on_player_connect(username, self.server_name, ip)
 
         # Check for player disconnection
@@ -225,7 +225,7 @@ class Process:
             print(f"{username} lost connection: {reason}")
             if username in self.connected_players:
                 self.connected_players.remove(username)
-            await self.analytics.log_player_count(len(self.connected_players), self.connected_players)
+            await self.server_analytics.log_player_count(len(self.connected_players), self.connected_players)
             await self.player_analytics.on_player_disconnect(username)
 
 

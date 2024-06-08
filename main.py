@@ -61,6 +61,7 @@ class MCConsoleAPI:
         self.router.add_api_route(
             "/players", self.get_connected_players, methods=["GET"]
         )
+        self.router.add_api_route("/server_stats", self.get_server_stats, methods=["GET"])
         self.router.add_api_route("/servers", self.get_running_servers, methods=["GET"])
         self.router.add_api_route(
             "/reload_config", self.reload_config, methods=["POST"]
@@ -357,6 +358,31 @@ class MCConsoleAPI:
             response.status_code = status.HTTP_404_NOT_FOUND
             return {"message": f"Server with name '{server_name}' not found"}
         return {"players": self.processes[server_name].connected_players}
+
+    async def get_server_stats(
+        self,
+        response: Response,
+        server_name: str,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        api_key=Security(validate_api_key),
+    ) -> dict:
+        """Get server stats for a particular server"""
+        if server_name not in self.processes:
+            response.status_code = status.HTTP_404_NOT_FOUND
+            return {"message": f"Server with name '{server_name}' not found"}
+
+        process = self.processes[server_name]
+        if not hasattr(process, "server_analytics"):
+            response.status_code = status.HTTP_400_BAD_REQUEST
+            return {"message": f"Server with name '{server_name}' does not have analytics enabled"}
+
+        try:
+            player_counts = await process.server_analytics.get_player_counts(start_date, end_date)
+            return {"player_counts": player_counts}
+        except Exception as e:
+            response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+            return {"message": f"Error retrieving server stats: {str(e)}"}
 
     async def get_running_servers(self, api_key=Security(validate_api_key)) -> dict:
         """Get a list of running servers and their file paths"""
