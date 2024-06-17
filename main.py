@@ -253,16 +253,15 @@ class MCConsoleAPI:
                     new_lines = self.processes[server_name].scrollback_buffer[
                         last_line_count:
                     ]
-                    for line in new_lines:
-                        yield json.dumps({"line": line}) + "\n"
+                    for line, timestamp in new_lines:
+                        yield json.dumps({"line": line, "timestamp": timestamp}) + "\n"
                     last_line_count = current_line_count
                 else:
                     # No new lines, pause before checking again
                     await asyncio.sleep(1)
         else:
-            # Copy the scrollback buffer so we don't modify it
-            for line in self.processes[server_name].scrollback_buffer[-lines:]:
-                yield json.dumps({"line": line}) + "\n"
+            for line, timestamp in self.processes[server_name].scrollback_buffer[-lines:]:
+                yield json.dumps({"line": line, "timestamp": timestamp}) + "\n"
 
     async def restart_server(
         self,
@@ -421,7 +420,9 @@ class MCConsoleAPI:
         """
         if not uuid and not username:
             response.status_code = status.HTTP_400_BAD_REQUEST
-            return {"message": "Please provide either a UUID or username to query player sessions."}
+            return {
+                "message": "Please provide either a UUID or username to query player sessions."
+            }
 
         if uuid and username:
             response.status_code = status.HTTP_400_BAD_REQUEST

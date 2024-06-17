@@ -3,6 +3,7 @@ import os
 import re
 import typing
 from asyncio import SubprocessProtocol, transports
+from datetime import datetime
 from typing import Optional, Union
 
 from services.server_analytics import ServerAnalytics
@@ -254,7 +255,8 @@ class ProcessProtocol(SubprocessProtocol):
     def pipe_data_received(self, fd: int, data: bytes):
         # Decode the data from the process and store it
         message = data.decode().strip()
-        self.scrollback_buffer.append(message)
+        timestamp = datetime.now().isoformat()
+        self.scrollback_buffer.append((message, timestamp))
 
         # Forward console output to all consumers
         for consumer in self._consumers:
