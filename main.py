@@ -149,6 +149,11 @@ class MCConsoleAPI:
                 }
             server_path = server_info["path"]
 
+        if server_name in self.processes:
+            response.status_code = status.HTTP_400_BAD_REQUEST
+            return {
+                "message": f'A server with the name "{server_name}" is already running!'
+            }
         process = Process(server_path, server_name, self.server_stopped)
         started = await process.start_server()
 
