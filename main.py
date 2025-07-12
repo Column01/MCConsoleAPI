@@ -206,7 +206,7 @@ class MCConsoleAPI:
         lines: Union[int, None] = None,
         api_key=Security(validate_api_key),
     ) -> StreamingResponse:
-        """Get output from the server console"""
+        """Get output from a server console by its name. Can also get the last 'n' lines of output."""
         if server_name not in self.processes:
             response.status_code = status.HTTP_404_NOT_FOUND
             return {"message": f"Server with name '{server_name}' not found"}
@@ -219,7 +219,7 @@ class MCConsoleAPI:
         command: str,
         api_key=Security(validate_api_key),
     ) -> dict:
-        """Send input to the server console"""
+        """Send input to a server console by its name."""
         if server_name not in self.processes:
             response.status_code = status.HTTP_404_NOT_FOUND
             return {"message": f"Server with name '{server_name}' not found"}
@@ -275,7 +275,7 @@ class MCConsoleAPI:
         time_delta: Optional[int] = None,
         api_key=Security(validate_api_key),
     ) -> dict:
-        """Restarts the server with an optional time delta for when to do it"""
+        """Restarts a server with an optional time delta for when to do it"""
         if server_name not in self.processes:
             response.status_code = status.HTTP_404_NOT_FOUND
             return {"message": f"Server with name '{server_name}' not found"}
@@ -330,7 +330,7 @@ class MCConsoleAPI:
         server_name: Optional[str] = None,
         api_key=Security(validate_api_key),
     ) -> dict:
-        """Reloads server_name's config or the API config if none is specified"""
+        """Reloads a server's config or the API config if no server is specified"""
         if server_name is None:
             await self.config.reload()
             return {"message": "Config file reloaded successfully"}
@@ -347,7 +347,7 @@ class MCConsoleAPI:
     async def generate_api_key(
         self, response: Response, name: str, api_key=Security(validate_api_key)
     ) -> dict:
-        """Generates an API key. Requires an Admin API key"""
+        """Generates a new API key. Requires the Admin API key"""
         if not self.db.is_admin_api_key(api_key):
             response.status_code = status.HTTP_403_FORBIDDEN
             return {"message": "Only the admin API key can generate new API keys."}
@@ -365,7 +365,7 @@ class MCConsoleAPI:
     async def get_connected_players(
         self, response: Response, server_name: str, api_key=Security(validate_api_key)
     ) -> dict:
-        """Get a list of connected players to server_name"""
+        """Get a list of connected players to a server"""
         if server_name not in self.processes:
             response.status_code = status.HTTP_404_NOT_FOUND
             return {"message": f"Server with name '{server_name}' not found"}
