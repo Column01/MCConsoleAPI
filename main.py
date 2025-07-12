@@ -1,4 +1,4 @@
-import argparse
+# import argparse
 import asyncio
 import json
 from typing import AsyncGenerator, Optional, Union
@@ -90,7 +90,7 @@ class MCConsoleAPI:
     async def read_root(self):
         """Web root. Just kinda here for fun"""
         return {
-            "line": "Connected to MCConsoleAPI! You can read a server's output at '{server_name}/output'"
+            "line": "Connected to MCConsoleAPI! Check out the API Docs at '/docs'"
         }
 
     async def start_api_server(self):
@@ -458,7 +458,7 @@ class MCConsoleAPI:
         return {"servers": running_servers}
 
 
-async def main(args: argparse.Namespace):
+async def main():
     # Load the server config file
     config = TomlConfig("api_config.toml")
 
@@ -468,22 +468,21 @@ async def main(args: argparse.Namespace):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        prog="MCConsoleAPI",
-        description="A Python-Based async minecraft server wrapper that exposes HTTP endpoints for interaction with your server",
-    )
-
-    parser.add_argument(
-        "-p",
-        "--path",
-        metavar="PATH",
-        type=str,
-        default=".",
-        required=False,
-        help="The path to your minecraft server",
-    )
-    args = parser.parse_args()
+    # parser = argparse.ArgumentParser(
+    #     prog="MCConsoleAPI",
+    #     description="A Python-Based async minecraft server wrapper that exposes HTTP endpoints for interaction with your server",
+    # )
+    # parser.add_argument(
+    #     "-p",
+    #     "--path",
+    #     metavar="PATH",
+    #     type=str,
+    #     default=".",
+    #     required=False,
+    #     help="The path to your minecraft server",
+    # )
+    # args = parser.parse_args()
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    main_task = asyncio.ensure_future(main(args))
+    main_task = asyncio.ensure_future(main())
     loop.run_until_complete(main_task)

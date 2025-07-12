@@ -11,7 +11,7 @@ path = "C:\\Users\\colin\\Documents\\_GithubRepos\\MCConsoleAPI\\test_17"
 name = "test"
 autostart = false
 
-[[servers]]
-path = "C:\\path\\to\\server2"
-name = "server2"
-autostart = false
+# [[servers]]
+# path = "C:\\path\\to\\server2"
+# name = "server2"
+# autostart = false

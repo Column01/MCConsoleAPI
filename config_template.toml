@@ -1,9 +1,3 @@
-[general]
-# The IP and Port to bind the web server too
-host = "127.0.0.1"
-port = 5000
-log_level = "info"
-
 [minecraft]
 # Path to your install of java. In this case, defaults to the installed java version
 java_path = "java"

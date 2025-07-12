@@ -1,4 +1,6 @@
 import glob
+import re
+from datetime import datetime
 
 
 class LimitedList(list):
@@ -63,3 +65,25 @@ def generate_time_message(interval: int) -> str:
         msg_parts.append(f"{seconds} second{'s' if seconds > 1 else ''}")
 
     return ", ".join(msg_parts)
+
+
+# Regex pattern for timestamps
+timestamp_pattern = re.compile(r"\[(.*?)\]")
+
+
+def parse_timestamp(line: str) -> str:
+    match = timestamp_pattern.search(line)
+    if match:
+        timestamp_str = match.group(1)
+        try:
+            timestamp = datetime.strptime(timestamp_str, "%H:%M:%S")
+            current_datetime = datetime.now()
+            timestamp = timestamp.replace(
+                year=current_datetime.year,
+                month=current_datetime.month,
+                day=current_datetime.day,
+            )
+            return timestamp.isoformat()
+        except ValueError:
+            return datetime.now().replace(microsecond=0).isoformat()
+    return datetime.now().isoformat()
