@@ -4,12 +4,13 @@ import json
 from typing import AsyncGenerator, Optional, Union
 
 import uvicorn
-from fastapi import APIRouter, FastAPI, HTTPException, Response, Security, status
-from fastapi.responses import StreamingResponse
+from fastapi import FastAPI, HTTPException, Response, Security, status
+from fastapi.responses import StreamingResponse, RedirectResponse
 from fastapi.security import APIKeyHeader, APIKeyQuery
 
 from services.player_fetch import player_fetcher
 from services.process import Process
+from services.server_analytics import ServerAnalytics
 from utils.config import TomlConfig
 from utils.database import ApiDB, PlayerAnalyticsDB
 from utils.util import generate_time_message
@@ -45,40 +46,82 @@ def validate_api_key(
     )
 
 
+# Metadata for the OpenAPI Docs
+tags_metadata = [
+    {
+        "name": "Servers",
+        "description": "Operations involving Minecraft servers. List running servers, Start/Stop/Restart etc.",
+    },
+    {
+        "name": "Stats",
+        "description": "Operations to fetch server or player statistics."
+    },
+    {
+        "name": "API",
+        "description": "Operations involving the MCConsoleAPI."
+    },
+]
+
+
 class MCConsoleAPI:
     def __init__(self, config: TomlConfig):
         self.config = config
 
-        self.app = FastAPI()
+        self.app = FastAPI(
+            title="MCConsoleAPI",
+            summary="An async HTTP API wrapper for Minecraft Servers",
+            openapi_tags=tags_metadata,
+        )
         # Setup API routes
-        self.router = APIRouter()
-        self.router.add_api_route("/", self.read_root, methods=["GET"])
-        self.router.add_api_route("/start_server", self.start_server, methods=["POST"])
-        self.router.add_api_route("/stop_server", self.stop_server, methods=["POST"])
-        self.router.add_api_route("/output", self.console_output, methods=["GET"])
-        self.router.add_api_route("/input", self.console_input, methods=["POST"])
-        self.router.add_api_route("/restart", self.restart_server, methods=["POST"])
-        self.router.add_api_route(
-            "/players", self.get_connected_players, methods=["GET"]
+        self.app.add_api_route("/", self.root, methods=["GET"], include_in_schema=False)
+        self.app.add_api_route("/servers", self.get_running_servers, methods=["GET"], tags=["Servers"])
+        self.app.add_api_route(
+            "/servers/{server_name}/start", self.start_server, methods=["POST"], tags=["Servers"]
         )
-        self.router.add_api_route(
-            "/player_sessions", self.get_player_sessions, methods=["GET"]
+        self.app.add_api_route(
+            "/servers/{server_name}/stop", self.stop_server, methods=["POST"], tags=["Servers"]
         )
-        self.router.add_api_route(
-            "/server_stats", self.get_server_stats, methods=["GET"]
+        self.app.add_api_route(
+            "/servers/{server_name}/output",
+            self.console_output,
+            methods=["GET"],
+            tags=["Servers"],
         )
-        self.router.add_api_route("/servers", self.get_running_servers, methods=["GET"])
-        self.router.add_api_route(
-            "/reload_config", self.reload_config, methods=["POST"]
+        self.app.add_api_route(
+            "/servers/{server_name}/input",
+            self.console_input,
+            methods=["POST"],
+            tags=["Servers"],
         )
-        self.router.add_api_route(
-            "/gen_api_key", self.generate_api_key, methods=["POST"]
+        self.app.add_api_route(
+            "/servers/{server_name}/restart",
+            self.restart_server,
+            methods=["POST"],
+            tags=["Servers"],
         )
-
-        self.app.include_router(self.router)
+        self.app.add_api_route(
+            "/servers/{server_name}/players",
+            self.get_connected_players,
+            methods=["GET"],
+            tags=["Servers"],
+        )
+        self.app.add_api_route(
+            "/servers/{server_name}/reload_config", self.reload_server_config, methods=["POST"], tags=["Servers"]
+        )
+        self.app.add_api_route(
+            "/stats/player_sessions/{server_name}/", self.get_player_sessions, methods=["GET"], tags=["Stats"]
+        )
+        self.app.add_api_route(
+            "/stats/{server_name}", self.get_server_stats, methods=["GET"], tags=["Stats"]
+        )
+        
+        self.app.add_api_route(
+            "/reload_config", self.reload_api_config, methods=["POST"], tags=["API"]
+        )
+        self.app.add_api_route("/gen_api_key", self.generate_api_key, methods=["POST"], tags=["API"])
 
         # Dict to store server processes
-        self.processes = {}
+        self.processes: dict[str, Process] = {}
 
         # Setup the Database
         self.db = ApiDB("api_keys.db", autocommit=True)
@@ -87,11 +130,8 @@ class MCConsoleAPI:
         # Player analytics DB
         self.player_analytics = PlayerAnalyticsDB(autocommit=True)
 
-    async def read_root(self):
-        """Web root. Just kinda here for fun"""
-        return {
-            "line": "Connected to MCConsoleAPI! Check out the API Docs at '/docs'"
-        }
+    async def root(self):
+        return RedirectResponse(url="/docs", status_code=status.HTTP_302_FOUND)
 
     async def start_api_server(self):
         """Starts the API server"""
@@ -324,25 +364,29 @@ class MCConsoleAPI:
         print("Triggered server restart")
         return {"message": "Triggered a server restart successfully"}
 
-    async def reload_config(
+    async def reload_server_config(
         self,
         response: Response,
-        server_name: Optional[str] = None,
+        server_name: str = None,
         api_key=Security(validate_api_key),
     ) -> dict:
-        """Reloads a server's config or the API config if no server is specified"""
-        if server_name is None:
-            await self.config.reload()
-            return {"message": "Config file reloaded successfully"}
-        else:
-            if server_name not in self.processes:
-                response.status_code = status.HTTP_404_NOT_FOUND
-                return {"message": f"Server with name '{server_name}' not found"}
-            process = self.processes[server_name]
-            await process.reload_config()
-            return {
-                "message": f"Config file reloaded successfully for server '{server_name}'"
-            }
+        """Reloads a server's config (requires Minecraft server restart to apply any changes)"""
+        if server_name not in self.processes:
+            response.status_code = status.HTTP_404_NOT_FOUND
+            return {"message": f"Server with name '{server_name}' not found"}
+        process = self.processes[server_name]
+        await process.reload_config()
+        return {
+            "message": f"Config file reloaded successfully for server '{server_name}'"
+        }
+
+    async def reload_api_config(
+        self,
+        api_key=Security(validate_api_key),
+    ) -> dict:
+        """Reloads the API config. Requires API server restart for changes to host/port"""
+        await self.config.reload()
+        return {"message": "Config file reloaded successfully"}
 
     async def generate_api_key(
         self, response: Response, name: str, api_key=Security(validate_api_key)
@@ -386,8 +430,15 @@ class MCConsoleAPI:
         If not provided, the stats for the entire available time range will be returned.
         """
         if server_name not in self.processes:
-            response.status_code = status.HTTP_404_NOT_FOUND
-            return {"message": f"Server with name '{server_name}' not found"}
+            try:
+                analytics = ServerAnalytics(server_name)
+                player_counts = await analytics.get_player_counts(
+                start_date, end_date
+                )
+                return {"player_counts": player_counts}
+            except Exception as e:
+                response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+                return {"message": f"Error retrieving server stats: {str(e)}"}
 
         process = self.processes[server_name]
         if not hasattr(process, "server_analytics"):
@@ -408,9 +459,9 @@ class MCConsoleAPI:
     async def get_player_sessions(
         self,
         response: Response,
+        server_name: Optional[str] = None,
         uuid: Optional[str] = None,
         username: Optional[str] = None,
-        server_name: Optional[str] = None,
         start_time: Optional[str] = None,
         end_time: Optional[str] = None,
         api_key=Security(validate_api_key),

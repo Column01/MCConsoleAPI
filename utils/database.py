@@ -58,7 +58,7 @@ class ApiDB(SQLiteDB):
 
     def add_api_key(self, name: str) -> Optional[str]:
         # Generate a new API key
-        new_api_key = secrets.token_urlsafe(16)
+        new_api_key = secrets.token_urlsafe(32)
         try:
             # Insert the new API key and name into the database
             self.execute_query(
@@ -76,7 +76,6 @@ class ApiDB(SQLiteDB):
         result = self.fetch_one("SELECT api_key from api_keys WHERE name = ?", (name,))
         if result is not None:
             return result[0]
-        return None
 
     def is_admin_api_key(self, api_key: str) -> bool:
         admin_api_key = self.get_api_key_by_name("admin")
@@ -163,7 +162,7 @@ class PlayerAnalyticsDB(SQLiteDB):
         server_name: Optional[str] = None,
         start_time: Optional[str] = None,
         end_time: Optional[str] = None,
-    ) -> List[dict]:
+    ) -> List[Optional[dict]]:
         query = "SELECT * FROM player_sessions WHERE uuid = ?"
         params = (uuid,)
 

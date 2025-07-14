@@ -30,7 +30,9 @@ class Process:
         try:
             self.config = TomlConfig(config_path)
         except FileNotFoundError:
-            print("Error when loading the config file for the server as it was not found!")
+            print(
+                "Error when loading the config file for the server as it was not found!"
+            )
 
         self.server_analytics = ServerAnalytics(self.server_name)
 
@@ -70,7 +72,7 @@ class Process:
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
-            cwd=self.server_path  # start process in server dir
+            cwd=self.server_path,  # start process in server dir
         )
 
         # Server started flag
@@ -139,7 +141,9 @@ class Process:
         java_cmd.append("-jar")
         jar_path = find_jar(os.path.join(self.server_path, mc_config["server_jar"]))
         if jar_path is None:
-            raise FileNotFoundError(f"Unable to find a minecraft jar in the server directory using the pattern: {mc_config["server_jar"]}")
+            raise FileNotFoundError(
+                f"Unable to find a minecraft jar in the server directory using the pattern: {mc_config["server_jar"]}"
+            )
         java_cmd.append(jar_path)
 
         # No GUI
@@ -162,7 +166,7 @@ class Process:
 
         return (False, "Server protocol is not present... has the server been started?")
 
-    async def proc_closed(self, exit_code):
+    async def proc_closed(self, exit_code: Union[int, None]):
         print(f"SERVER PROC CLOSED! Exit code: {exit_code}")
         self.running = False
 
@@ -195,7 +199,9 @@ class Process:
         self.disconnect_pattern = re.compile(
             self.config["minecraft"]["console"]["player_disconnected"]
         )
-        self.chat_pattern = re.compile(self.config["minecraft"]["console"]["player_chat"])
+        self.chat_pattern = re.compile(
+            self.config["minecraft"]["console"]["player_chat"]
+        )
 
     async def console_output(self, output: str):
         """Callback used to handle output from the server console"""
@@ -215,8 +221,12 @@ class Process:
             ip = connect_match.group("ip")
             print(f"Player connected: {username} ({ip})")
             self.connected_players.append(username)
-            await self.server_analytics.log_player_count(len(self.connected_players), self.connected_players)
-            await self.player_analytics.on_player_connect(username, self.server_name, ip)
+            await self.server_analytics.log_player_count(
+                len(self.connected_players), self.connected_players
+            )
+            await self.player_analytics.on_player_connect(
+                username, self.server_name, ip
+            )
 
         # Check for player disconnection
         disconnect_match = self.disconnect_pattern.search(output)
@@ -226,12 +236,13 @@ class Process:
             print(f"{username} lost connection: {reason}")
             if username in self.connected_players:
                 self.connected_players.remove(username)
-            await self.server_analytics.log_player_count(len(self.connected_players), self.connected_players)
+            await self.server_analytics.log_player_count(
+                len(self.connected_players), self.connected_players
+            )
             await self.player_analytics.on_player_disconnect(username)
 
 
 class ProcessProtocol(SubprocessProtocol):
-
     """Process Protocol that handles server process I/O"""
 
     def __init__(self, exit_future: typing.Coroutine):
@@ -240,10 +251,10 @@ class ProcessProtocol(SubprocessProtocol):
 
         self.loop = asyncio.get_event_loop()
         self.scrollback_buffer = LimitedList(maxlen=1000)
-        self._consumers = []
-        self._temp_consumers = []
+        self._consumers: list[typing.Coroutine] = []
+        self._temp_consumers: list[asyncio.Future] = []
 
-    def connection_made(self, transport: transports.BaseTransport):
+    def connection_made(self, transport: transports.SubprocessTransport):
         print("Connection with process established")
         self.transport = transport
 
@@ -258,21 +269,16 @@ class ProcessProtocol(SubprocessProtocol):
         timestamp = datetime.now().isoformat()
         self.scrollback_buffer.append((message, timestamp))
 
-        # Forward console output to all consumers
-        for consumer in self._consumers:
-            if asyncio.isfuture(consumer):
-                consumer.set_result(message)
-            else:
+        # stdout/stderr only
+        if fd in (1, 2):
+            # Forward console output to all consumers
+            for consumer in self._consumers:
                 self.loop.create_task(consumer(message))
 
-        # Temporary consumers, get removed after one usage.
-        # Useful for some things like checking the result of a command execution
-        for i in range(len(self._temp_consumers)):
-            consumer = self._temp_consumers.pop()
-            if asyncio.isfuture(consumer):
+            # Temporary consumers, get removed after one usage.
+            for i in range(len(self._temp_consumers)):
+                consumer = self._temp_consumers.pop()
                 consumer.set_result(message)
-            else:
-                self.loop.create_task(consumer(message))
 
     def process_exited(self):
         # Called when the java process exits

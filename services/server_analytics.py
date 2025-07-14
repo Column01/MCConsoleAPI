@@ -7,7 +7,7 @@ from utils.database import ServerAnalyticsDB
 
 
 class ServerAnalytics:
-    def __init__(self, server_name):
+    def __init__(self, server_name: str):
         self.server_name = server_name
         self.db = ServerAnalyticsDB(autocommit=True)
         self.cursor = self.db.cursor

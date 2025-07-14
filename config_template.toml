@@ -22,3 +22,6 @@ player_disconnected = '(?P<username>[A-Za-z0-9_]{1,16}) lost connection: (?P<rea
 # If you have a plugin that changes player chat, you will need to change this to get chat history working.
 # It's also used to stop people from triggering the above two regexes using chat messages so this is important!
 player_chat = '\]: <(?P<username>[A-Za-z0-9_]{1,16})> (?P<message>.*?)$'
+# For example if you swapped to wrapping the player names with square brackets, this should work. Regex is really fun! (not)
+#player_chat = '\]: \[(?P<username>[A-Za-z0-9_]{1,16})\] (?P<message>.*?)$'
+# If you have player names with prefixes, this will probably also get included in any player stats that get logged depending how you format it

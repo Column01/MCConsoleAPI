@@ -8,7 +8,7 @@ class PlayerAnalytics:
     def __init__(self):
         self.db = PlayerAnalyticsDB()
         self.db.setup_database()
-        self.temp_lookup = {}
+        self.sessions = {}
 
     async def on_player_connect(self, username: str, server_name: str, ip: str):
         """Called when a player connects to a server to track the start of their session and some other info
@@ -26,7 +26,7 @@ class PlayerAnalytics:
         uuid = player_data["uuid"]
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        self.temp_lookup[username] = {
+        self.sessions[username] = {
             "uuid": uuid,
             "server_name": server_name,
             "ip": ip,
@@ -40,12 +40,12 @@ class PlayerAnalytics:
         Args:
             username (str): The player who disconnected
         """
-        if username in self.temp_lookup:
+        if username in self.sessions:
             disconnect_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            ip = self.temp_lookup[username]["ip"]
-            uuid = self.temp_lookup[username]["uuid"]
-            server_name = self.temp_lookup[username]["server_name"]
-            connect_time = self.temp_lookup[username]["connect_time"]
+            ip = self.sessions[username]["ip"]
+            uuid = self.sessions[username]["uuid"]
+            server_name = self.sessions[username]["server_name"]
+            connect_time = self.sessions[username]["connect_time"]
             session_len = (
                 datetime.strptime(disconnect_time, "%Y-%m-%d %H:%M:%S")
                 - datetime.strptime(connect_time, "%Y-%m-%d %H:%M:%S")
@@ -60,7 +60,7 @@ class PlayerAnalytics:
                 disconnect_time=disconnect_time,
                 session_len=int(session_len),
             )
-            self.temp_lookup.pop(uuid, None)
+            self.sessions.pop(uuid, None)
             # Invalidate the player's cached UUID to fix issues regarding name changes
             # Lowers the cache's effectiveness a lot but makes the code safer
             await player_fetcher.invalidate_player_cache(username)
@@ -74,5 +74,5 @@ class PlayerAnalytics:
 
     async def server_stopping(self):
         """Called when the server stops to make sure we log all player sessions as server is stopping"""
-        for username in self.temp_lookup:
+        for username in self.sessions:
             await self.on_player_disconnect(username)
