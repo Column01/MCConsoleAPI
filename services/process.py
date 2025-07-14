@@ -9,6 +9,7 @@ from typing import Optional, Union
 from services.server_analytics import ServerAnalytics
 from services.player_analytics import PlayerAnalytics
 from utils.config import TomlConfig
+from utils.sse import *
 from utils.util import LimitedList, find_jar, generate_time_message
 
 
@@ -40,8 +41,13 @@ class Process:
 
         # List of connected players
         self.connected_players = []
-        # Player chat history
-        self.chat_history = []
+        # List of connected console users, different from players (admins on console)
+        self.connected_users = []
+        # Player chat history (unused atm)
+        #self.chat_history = []
+        # Server Sent Events Queue (excludes console output)
+        self.sse_queue: dict[str, list[SSEEvent]] = {}
+        self.last_sse_id = 0
         self.running = False
 
     async def start_server(self) -> bool:
@@ -106,7 +112,15 @@ class Process:
 
         return True
 
+    async def add_sse_event(self, sse_event_class: SSEEvent, data: dict):
+        """Creates an object of an Server Sent Event to be broadcast to any listeners"""
+        timestamp = datetime.now().isoformat()
+        data["timestamp"] = timestamp
+        for user in self.sse_queue.keys():
+            self.sse_queue[user].append(sse_event_class(data))
+
     async def restart_server(self):
+        await self.add_sse_event(ServerRestarting, {"message": f"{self.server_name} is being restarted."})
         self.restarting = True
         if not self.running:
             print("Server is not currently running. Starting the server instead.")
@@ -162,6 +176,7 @@ class Process:
             await self.protocol.write_process(data)
             await future
             line = future.result()
+            await self.add_sse_event(ServerInput, {"message": data, "result": line})
             return ("unknown command" not in line.lower(), line)
 
         return (False, "Server protocol is not present... has the server been started?")
@@ -182,6 +197,7 @@ class Process:
         await self.player_analytics.server_stopping()
         # Run exit future if it exists and server isn't restarting or running
         if self.exit_future is not None and not self.restarting and not self.running:
+            await self.add_sse_event(ServerStopped, {"message": f"{self.server_name} has stopped with exit code: {exit_code}"})
             await self.exit_future(self.server_name, exit_code)
 
     async def send_restart_reminder(self, interval: int):
@@ -206,13 +222,13 @@ class Process:
     async def console_output(self, output: str):
         """Callback used to handle output from the server console"""
         print(output)
-
         # Check for chat messages
         chat_match = self.chat_pattern.search(output)
         if chat_match:
             username = chat_match.group("username")
             message = chat_match.group("message")
             self.chat_history.append((username, message))
+            await self.add_sse_event(PlayerChat, {"message": message, "username": username})
 
         # Check for player connection
         connect_match = self.connect_pattern.search(output)
@@ -227,6 +243,7 @@ class Process:
             await self.player_analytics.on_player_connect(
                 username, self.server_name, ip
             )
+            await self.add_sse_event(PlayerList, {"players": self.connected_players})
 
         # Check for player disconnection
         disconnect_match = self.disconnect_pattern.search(output)
@@ -240,6 +257,7 @@ class Process:
                 len(self.connected_players), self.connected_players
             )
             await self.player_analytics.on_player_disconnect(username)
+            await self.add_sse_event(PlayerList, {"players": self.connected_players})
 
 
 class ProcessProtocol(SubprocessProtocol):

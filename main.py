@@ -4,7 +4,7 @@ import json
 from typing import AsyncGenerator, Optional, Union
 
 import uvicorn
-from fastapi import FastAPI, HTTPException, Response, Security, status
+from fastapi import FastAPI, HTTPException, Response, Security, status, Request
 from fastapi.responses import StreamingResponse, RedirectResponse
 from fastapi.security import APIKeyHeader, APIKeyQuery
 
@@ -13,6 +13,7 @@ from services.process import Process
 from services.server_analytics import ServerAnalytics
 from utils.config import TomlConfig
 from utils.database import ApiDB, PlayerAnalyticsDB
+from utils.sse import *
 from utils.util import generate_time_message
 
 api_key_query = APIKeyQuery(name="api_key", auto_error=False)
@@ -54,12 +55,9 @@ tags_metadata = [
     },
     {
         "name": "Stats",
-        "description": "Operations to fetch server or player statistics."
+        "description": "Operations to fetch server or player statistics.",
     },
-    {
-        "name": "API",
-        "description": "Operations involving the MCConsoleAPI."
-    },
+    {"name": "API", "description": "Operations involving the MCConsoleAPI."},
 ]
 
 
@@ -74,12 +72,26 @@ class MCConsoleAPI:
         )
         # Setup API routes
         self.app.add_api_route("/", self.root, methods=["GET"], include_in_schema=False)
-        self.app.add_api_route("/servers", self.get_running_servers, methods=["GET"], tags=["Servers"])
         self.app.add_api_route(
-            "/servers/{server_name}/start", self.start_server, methods=["POST"], tags=["Servers"]
+            "/servers", self.get_running_servers, methods=["GET"], tags=["Servers"]
         )
         self.app.add_api_route(
-            "/servers/{server_name}/stop", self.stop_server, methods=["POST"], tags=["Servers"]
+            "/servers/{server_name}/sse",
+            self.server_sent_events,
+            methods=["GET"],
+            tags=["Servers"],
+        )
+        self.app.add_api_route(
+            "/servers/{server_name}/start",
+            self.start_server,
+            methods=["POST"],
+            tags=["Servers"],
+        )
+        self.app.add_api_route(
+            "/servers/{server_name}/stop",
+            self.stop_server,
+            methods=["POST"],
+            tags=["Servers"],
         )
         self.app.add_api_route(
             "/servers/{server_name}/output",
@@ -106,19 +118,30 @@ class MCConsoleAPI:
             tags=["Servers"],
         )
         self.app.add_api_route(
-            "/servers/{server_name}/reload_config", self.reload_server_config, methods=["POST"], tags=["Servers"]
+            "/servers/{server_name}/reload_config",
+            self.reload_server_config,
+            methods=["POST"],
+            tags=["Servers"],
         )
         self.app.add_api_route(
-            "/stats/player_sessions/{server_name}/", self.get_player_sessions, methods=["GET"], tags=["Stats"]
+            "/stats/player_sessions/{server_name}/",
+            self.get_player_sessions,
+            methods=["GET"],
+            tags=["Stats"],
         )
         self.app.add_api_route(
-            "/stats/{server_name}", self.get_server_stats, methods=["GET"], tags=["Stats"]
+            "/stats/{server_name}",
+            self.get_server_stats,
+            methods=["GET"],
+            tags=["Stats"],
         )
-        
+
         self.app.add_api_route(
             "/reload_config", self.reload_api_config, methods=["POST"], tags=["API"]
         )
-        self.app.add_api_route("/gen_api_key", self.generate_api_key, methods=["POST"], tags=["API"])
+        self.app.add_api_route(
+            "/gen_api_key", self.generate_api_key, methods=["POST"], tags=["API"]
+        )
 
         # Dict to store server processes
         self.processes: dict[str, Process] = {}
@@ -285,11 +308,7 @@ class MCConsoleAPI:
     async def serve_console_lines(
         self, server_name: str, lines: Union[int, None]
     ) -> AsyncGenerator[str, None]:
-        """Internal function to stream console lines through /output"""
-        if server_name not in self.processes:
-            yield json.dumps({"error": f"Server with name '{server_name}' not found"})
-            return
-
+        """Internal function to stream console lines through /servers/{server_name}/output"""
         if lines is None:
             last_line_count = 0
             while True:
@@ -305,8 +324,52 @@ class MCConsoleAPI:
                     # No new lines, pause before checking again
                     await asyncio.sleep(1)
         else:
-            for line, timestamp in self.processes[server_name].scrollback_buffer[-lines:]:
+            for line, timestamp in self.processes[server_name].scrollback_buffer[
+                -lines:
+            ]:
                 yield json.dumps({"line": line, "timestamp": timestamp}) + "\n"
+
+    async def server_sent_events(
+        self, response: Response, request: Request, server_name: str, api_key=Security(validate_api_key)
+    ):
+        """Connects to the backend via SSE (server sent events) to recieve event based messages from the backend rather than request based messages"""
+        if server_name not in self.processes:
+            response.status_code = status.HTTP_404_NOT_FOUND
+            return {"message": f"Server with name '{server_name}' not found."}
+
+        return StreamingResponse(
+            self.serve_events(request, server_name, api_key), media_type="text/event-stream"
+        )
+
+    async def serve_events(self, request: Request, server_name: str, api_key: str):
+        """Internal function used for streaming SSE events to clients"""
+        name = self.db.get_api_key_name(api_key)
+        print(name)
+        process = self.processes[server_name]
+        process.sse_queue[name] = []
+        last_line_count = 0
+        while True:
+            # Might get called, remains to be seen...
+            if await request.is_disconnected():
+                process.sse_queue.pop(name, None)
+                break
+            # Fetch current length of scrollback and send any new lines
+            current_line_count = len(process.scrollback_buffer)
+            if current_line_count > last_line_count:
+                new_lines = process.scrollback_buffer[last_line_count:]
+                for line, timestamp in new_lines:
+                    sse_event = ServerOutput({"message": line, "timestamp": timestamp})
+                    print(f"Sending SSE Event: {sse_event.__class__}")
+                    yield sse_event
+                last_line_count = current_line_count
+            else:
+                # No new console lines, check the server's SSE event queue and wait if done
+                sse_events = process.sse_queue[name]
+                for sse_event in sse_events:
+                    print(f"Sending SSE Event: {sse_event.__class__}")
+                    yield sse_event
+                process.sse_queue[name] = []
+                await asyncio.sleep(1)
 
     async def restart_server(
         self,
@@ -316,13 +379,13 @@ class MCConsoleAPI:
         api_key=Security(validate_api_key),
     ) -> dict:
         """Restarts a server with an optional time delta for when to do it"""
-        if server_name not in self.processes:
-            response.status_code = status.HTTP_404_NOT_FOUND
-            return {"message": f"Server with name '{server_name}' not found"}
-
         if not self.processes:
             response.status_code = status.HTTP_400_BAD_REQUEST
             return {"message": "No Minecraft server instances are currently running"}
+
+        if server_name not in self.processes:
+            response.status_code = status.HTTP_404_NOT_FOUND
+            return {"message": f"Server with name '{server_name}' not found"}
 
         process = self.processes[server_name]
         if time_delta is not None:
@@ -432,9 +495,7 @@ class MCConsoleAPI:
         if server_name not in self.processes:
             try:
                 analytics = ServerAnalytics(server_name)
-                player_counts = await analytics.get_player_counts(
-                start_date, end_date
-                )
+                player_counts = await analytics.get_player_counts(start_date, end_date)
                 return {"player_counts": player_counts}
             except Exception as e:
                 response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR

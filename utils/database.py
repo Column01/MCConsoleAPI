@@ -76,6 +76,11 @@ class ApiDB(SQLiteDB):
         result = self.fetch_one("SELECT api_key from api_keys WHERE name = ?", (name,))
         if result is not None:
             return result[0]
+    
+    def get_api_key_name(self, api_key: str) -> Optional[str]:
+        result = self.fetch_one("SELECT name from api_keys WHERE api_key = ?", (api_key,))
+        if result is not None:
+            return result[0]
 
     def is_admin_api_key(self, api_key: str) -> bool:
         admin_api_key = self.get_api_key_by_name("admin")
