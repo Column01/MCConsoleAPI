@@ -72,7 +72,9 @@ class Process:
         self.protocol = ProcessProtocol(self.server_name, self.proc_closed)
         self.protocol.register_console_consumer(self.console_output)
         self.scrollback_buffer = self.protocol.scrollback_buffer
-        self.logger.info(f"Starting server with the following CMD: {' '.join(java_cmd)}")
+        self.logger.info(
+            f"Starting server with the following CMD: {' '.join(java_cmd)}"
+        )
         # Start server process and connect our custom protocol to it
         self._transport, self._protocol = await self.loop.subprocess_exec(
             lambda: self.protocol,
@@ -121,11 +123,32 @@ class Process:
         for user in self.sse_queue.keys():
             self.sse_queue[user].append(sse_event_class(data))
 
+    async def register_sse_user(self, user: str):
+        # Creates an entry in the SSE queue for the user to consume events from
+        self.sse_queue[user] = []
+        # Add the user attach event for this new user
+        self.add_sse_event(
+            UserAttach, {"message": "{user} attached to the console", "username": user}
+        )
+
+    async def unregister_sse_user(self, user: str):
+        # Remove user from the SSE queue
+        self.sse_queue.pop(user, None)
+        # Add the user attach event for this new user
+        self.add_sse_event(
+            UserDetach,
+            {"message": "{user} detached from the console", "username": user},
+        )
+
     async def restart_server(self):
-        await self.add_sse_event(ServerRestarting, {"message": f"{self.server_name} is being restarted."})
+        await self.add_sse_event(
+            ServerRestarting, {"message": f"{self.server_name} is being restarted."}
+        )
         self.restarting = True
         if not self.running:
-            self.logger.info("Server is not currently running. Starting the server instead.")
+            self.logger.info(
+                "Server is not currently running. Starting the server instead."
+            )
             await self.start_server()
             return
         self.logger.info("Restarting the server...")
@@ -190,7 +213,9 @@ class Process:
         # 3221225786 is because for some odd reason, I think ctrl+c gets forwarded
         # to the minecraft server when done from the API console when it shouldn't
         if exit_code not in (0, 3221225786):
-            self.logger.warning("Server exited with a non-zero exit code. It may have crashed, restarting the server...")
+            self.logger.warning(
+                "Server exited with a non-zero exit code. It may have crashed, restarting the server..."
+            )
             await self.restart_server()
         else:
             self.logger.info("Server exited normally.")
@@ -199,7 +224,12 @@ class Process:
         await self.player_analytics.server_stopping()
         # Run exit future if it exists and server isn't restarting or running
         if self.exit_future is not None and not self.restarting and not self.running:
-            await self.add_sse_event(ServerStopped, {"message": f"{self.server_name} has stopped with exit code: {exit_code}"})
+            await self.add_sse_event(
+                ServerStopped,
+                {
+                    "message": f"{self.server_name} has stopped with exit code: {exit_code}"
+                },
+            )
             await self.exit_future(self.server_name, exit_code)
 
     async def send_restart_reminder(self, interval: int):
@@ -230,7 +260,9 @@ class Process:
             username = chat_match.group("username")
             message = chat_match.group("message")
             self.chat_history.append((username, message))
-            await self.add_sse_event(PlayerChat, {"message": message, "username": username})
+            await self.add_sse_event(
+                PlayerChat, {"message": message, "username": username}
+            )
 
         # Check for player connection
         connect_match = self.connect_pattern.search(output)

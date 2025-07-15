@@ -7,6 +7,7 @@ from utils.logging import get_logger
 
 logger = get_logger("database")
 
+
 class SQLiteDB:
     def __init__(self, db_name: str, *args, **kwargs):
         self.conn = sqlite3.connect(db_name, *args, **kwargs)
@@ -80,9 +81,11 @@ class ApiDB(SQLiteDB):
         result = self.fetch_one("SELECT api_key from api_keys WHERE name = ?", (name,))
         if result is not None:
             return result[0]
-    
+
     def get_api_key_name(self, api_key: str) -> Optional[str]:
-        result = self.fetch_one("SELECT name from api_keys WHERE api_key = ?", (api_key,))
+        result = self.fetch_one(
+            "SELECT name from api_keys WHERE api_key = ?", (api_key,)
+        )
         if result is not None:
             return result[0]
 

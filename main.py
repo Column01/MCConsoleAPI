@@ -331,7 +331,11 @@ class MCConsoleAPI:
                 yield json.dumps({"line": line, "timestamp": timestamp}) + "\n"
 
     async def server_sent_events(
-        self, response: Response, request: Request, server_name: str, api_key=Security(validate_api_key)
+        self,
+        response: Response,
+        request: Request,
+        server_name: str,
+        api_key=Security(validate_api_key),
     ):
         """Connects to the backend via SSE (server sent events) to recieve event based messages from the backend rather than request based messages"""
         if server_name not in self.processes:
@@ -339,7 +343,8 @@ class MCConsoleAPI:
             return {"message": f"Server with name '{server_name}' not found."}
 
         return StreamingResponse(
-            self.serve_events(request, server_name, api_key), media_type="text/event-stream"
+            self.serve_events(request, server_name, api_key),
+            media_type="text/event-stream",
         )
 
     async def serve_events(self, request: Request, server_name: str, api_key: str):
@@ -352,7 +357,7 @@ class MCConsoleAPI:
         while True:
             # Might get called, remains to be seen...
             if await request.is_disconnected():
-                process.sse_queue.pop(name, None)
+                process.unregister_sse_user(name)
                 break
             # Fetch current length of scrollback and send any new lines
             current_line_count = len(process.scrollback_buffer)
@@ -363,12 +368,12 @@ class MCConsoleAPI:
                     yield sse_event
                 last_line_count = current_line_count
             else:
-                # No new console lines, check the server's SSE event queue and wait if done
-                sse_events = process.sse_queue[name]
-                for sse_event in sse_events:
+                # If there are no new console lines, check the server's SSE event queue
+                for sse_event in process.sse_queue[name]:
                     yield sse_event
                 process.sse_queue[name] = []
-                await asyncio.sleep(1)
+            # Nothing to do, allow other stuff to happen
+            await asyncio.sleep(1)
 
     async def restart_server(
         self,
