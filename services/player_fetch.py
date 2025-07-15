@@ -2,6 +2,9 @@ from typing import List, Optional
 
 import aiohttp
 
+from utils.logging import get_logger
+
+logger = get_logger("PlayerFetcher")
 
 class PlayerFetcher:
     def __init__(self):
@@ -69,7 +72,7 @@ class PlayerFetcher:
                         "uuid": data["data"]["player"]["id"],
                     }
                     return ret
-            print(
+            logger.warning(
                 f"Failed to retrieve data for player: {url}. Status code: {response.status}"
             )
             return None

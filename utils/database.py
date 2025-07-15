@@ -3,6 +3,9 @@ import sqlite3
 from sqlite3 import Cursor
 from typing import Any, List, Optional
 
+from utils.logging import get_logger
+
+logger = get_logger("database")
 
 class SQLiteDB:
     def __init__(self, db_name: str, *args, **kwargs):
@@ -41,16 +44,17 @@ class ApiDB(SQLiteDB):
                 exit(
                     "Error when generating an Admin API key. The DB failed to create an Admin API key despite one not existing. This should NEVER happen!"
                 )
-            print(
+            logger.info(
                 "WARNING! New Admin API key was generated! Use this to create a new user or if you are lazy. DO NOT LOSE THIS!"
             )
-            print("\n\n")
-            print("=" * 16)
-            print(f"ADMIN API KEY: {api_key}")
-            print("=" * 16)
-            print("\n\n")
+            logger.info("\n\n")
+            msg = f"ADMIN API KEY: {api_key}"
+            logger.info("=" * len(msg))
+            logger.info(msg)
+            logger.info("=" * len(msg))
+            logger.info("\n\n")
 
-        print("Connection to Database established.")
+        logger.info("Connection to Database established.")
 
     def has_api_key(self, api_key: str) -> bool:
         result = self.fetch_one("SELECT * from api_keys WHERE api_key = ?", (api_key,))
@@ -66,10 +70,10 @@ class ApiDB(SQLiteDB):
                 (new_api_key, name),
             )
             self.commit()
-            print(f"New API key '{new_api_key}' added for '{name}'.")
+            logger.info(f"New API key '{new_api_key}' added for '{name}'.")
             return new_api_key
         except sqlite3.IntegrityError:
-            print(f"ERROR: An API key with the name '{name}' already exists.")
+            logger.error(f"An API key with the name '{name}' already exists.")
             return None
 
     def get_api_key_by_name(self, name: str) -> Optional[str]:
@@ -105,7 +109,7 @@ class ServerAnalyticsDB(SQLiteDB):
         """
         )
         self.commit()
-        print("Connection to Server Analytics Database established.")
+        logger.info("Connection to Server Analytics Database established.")
 
 
 class PlayerAnalyticsDB(SQLiteDB):
@@ -127,7 +131,7 @@ class PlayerAnalyticsDB(SQLiteDB):
             """
         )
         self.commit()
-        print("Connection to Player Analytics Database established.")
+        logger.info("Connection to Player Analytics Database established.")
 
     async def insert_player_entry(
         self,
@@ -157,9 +161,9 @@ class PlayerAnalyticsDB(SQLiteDB):
                 ),
             )
             self.commit()
-            print(f"Player entry inserted for UUID: {uuid}")
+            logger.info(f"Player entry inserted for UUID: {uuid}")
         except sqlite3.IntegrityError:
-            print(f"Error: Player entry with UUID {uuid} already exists.")
+            logger.info(f"Error: Player entry with UUID {uuid} already exists.")
 
     async def get_player_sessions(
         self,

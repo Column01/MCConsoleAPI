@@ -13,6 +13,7 @@ from services.process import Process
 from services.server_analytics import ServerAnalytics
 from utils.config import TomlConfig
 from utils.database import ApiDB, PlayerAnalyticsDB
+from utils.logging import get_logger
 from utils.sse import *
 from utils.util import generate_time_message
 
@@ -64,7 +65,7 @@ tags_metadata = [
 class MCConsoleAPI:
     def __init__(self, config: TomlConfig):
         self.config = config
-
+        self.logger = get_logger("MCConsoleAPI")
         self.app = FastAPI(
             title="MCConsoleAPI",
             summary="An async HTTP API wrapper for Minecraft Servers",
@@ -184,12 +185,12 @@ class MCConsoleAPI:
 
                 if started:
                     self.processes[server_name] = process
-                    print(
+                    self.logger.info(
                         f"Minecraft server started successfully with name: {server_name}"
                     )
                 else:
                     jar_pattern = process.config["minecraft"]["server_jar"]
-                    print(
+                    self.logger.info(
                         f"Failed to start the Minecraft server '{server_name}'. Please ensure that a server jar matching the pattern '{jar_pattern}' exists in the server path '{server_path}'"
                     )
 
@@ -299,8 +300,8 @@ class MCConsoleAPI:
 
     async def server_stopped(self, server_name: str, exit_code: int):
         """Called when a Minecraft server instance exits"""
-        print(
-            f"Minecraft server: {server_name} has stopped with exit code: {exit_code}"
+        self.logger.info(
+            f"Minecraft server {server_name} has stopped with exit code: {exit_code}"
         )
         if server_name in self.processes:
             self.processes.pop(server_name, None)
@@ -344,7 +345,7 @@ class MCConsoleAPI:
     async def serve_events(self, request: Request, server_name: str, api_key: str):
         """Internal function used for streaming SSE events to clients"""
         name = self.db.get_api_key_name(api_key)
-        print(name)
+        self.logger.info(request)
         process = self.processes[server_name]
         process.sse_queue[name] = []
         last_line_count = 0
@@ -359,14 +360,12 @@ class MCConsoleAPI:
                 new_lines = process.scrollback_buffer[last_line_count:]
                 for line, timestamp in new_lines:
                     sse_event = ServerOutput({"message": line, "timestamp": timestamp})
-                    print(f"Sending SSE Event: {sse_event.__class__}")
                     yield sse_event
                 last_line_count = current_line_count
             else:
                 # No new console lines, check the server's SSE event queue and wait if done
                 sse_events = process.sse_queue[name]
                 for sse_event in sse_events:
-                    print(f"Sending SSE Event: {sse_event.__class__}")
                     yield sse_event
                 process.sse_queue[name] = []
                 await asyncio.sleep(1)
@@ -418,14 +417,14 @@ class MCConsoleAPI:
                         process.send_restart_reminder(interval),
                     )
 
-            msg2 = f"Scheduled a server restart in {time_to_restart}"
-            print(msg2)
+            msg2 = f"Scheduled {server_name} for a restart in {time_to_restart}"
+            self.logger.info(msg2)
             return {"message": msg2}
 
         # If no time delta is provided, restart immediately
         await process.restart_server()
-        print("Triggered server restart")
-        return {"message": "Triggered a server restart successfully"}
+        self.logger.info(f"Triggered server restart for {server_name}")
+        return {"message": f"Triggered a server restart for '{server_name}'"}
 
     async def reload_server_config(
         self,

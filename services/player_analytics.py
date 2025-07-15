@@ -2,6 +2,10 @@ from datetime import datetime
 
 from services.player_fetch import player_fetcher
 from utils.database import PlayerAnalyticsDB
+from utils.logging import get_logger
+
+
+logger = get_logger("PlayerAnalytics")
 
 
 class PlayerAnalytics:
@@ -20,7 +24,7 @@ class PlayerAnalytics:
         """
         player_data = await player_fetcher.get_player_data(username)
         if player_data is None:
-            print(f"Player {username} not found. Skipping tracking.")
+            logger.warning(f"UUID could not be found for {username}. This session will not be tracked.")
             return
 
         uuid = player_data["uuid"]
@@ -32,7 +36,7 @@ class PlayerAnalytics:
             "ip": ip,
             "connect_time": timestamp,
         }
-        print(f"Player {username} with UUID {uuid} connected at {timestamp}")
+        logger.info(f"Player {username} with UUID {uuid} connected to {server_name} at {timestamp}")
 
     async def on_player_disconnect(self, username: str):
         """Called when a player disconnects from the server to log their play session
@@ -64,11 +68,11 @@ class PlayerAnalytics:
             # Invalidate the player's cached UUID to fix issues regarding name changes
             # Lowers the cache's effectiveness a lot but makes the code safer
             await player_fetcher.invalidate_player_cache(username)
-            print(
-                f"Player {username} with UUID {uuid} disconnected at {disconnect_time}"
+            logger.info(
+                f"Player {username} with UUID {uuid} disconnected from {server_name} at {disconnect_time}"
             )
         else:
-            print(
+            logger.warning(
                 f"Player {username} with UUID {uuid} not found in temporary lookup. Skipping tracking."
             )
 
