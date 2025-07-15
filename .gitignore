@@ -3,3 +3,4 @@ APIvenv
 test_*
 api_key.txt
 *.db
+*.egg-info

@@ -3,7 +3,7 @@ import sqlite3
 from sqlite3 import Cursor
 from typing import Any, List, Optional
 
-from utils.logging import get_logger
+from ..utils.logging import get_logger
 
 logger = get_logger("database")
 

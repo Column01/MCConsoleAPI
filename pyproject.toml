@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "MCConsoleAPI"
+version = "0.0.1"
+authors = [
+    {name = "Column01", email = "column01dev@gmail.com"},
+]
+description = "An asynchronous HTTP based web API for running Minecraft servers targeted at Developers and sys admins"
+readme = "README.md"
+requires-python = ">=3.11"
+classifiers = [
+    "Programming Language :: Python :: 3",
+]
+dependencies = [
+    "fastapi",
+    "toml",
+    "aiohttp",
+]
+
+[project.scripts]
+mcc-api = "MCConsoleAPI.main:main"

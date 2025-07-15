@@ -6,12 +6,12 @@ from asyncio import SubprocessProtocol, transports
 from datetime import datetime
 from typing import Optional, Union
 
-from services.server_analytics import ServerAnalytics
-from services.player_analytics import PlayerAnalytics
-from utils.config import TomlConfig
-from utils.logging import get_logger
-from utils.sse import *
-from utils.util import LimitedList, find_jar, generate_time_message
+from ..services.server_analytics import ServerAnalytics
+from ..services.player_analytics import PlayerAnalytics
+from ..utils.config import TomlConfig
+from ..utils.logging import get_logger
+from ..utils.sse import *
+from ..utils.util import LimitedList, find_jar, generate_time_message
 
 
 class Process:

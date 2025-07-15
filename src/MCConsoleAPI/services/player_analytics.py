@@ -1,8 +1,8 @@
 from datetime import datetime
 
-from services.player_fetch import player_fetcher
-from utils.database import PlayerAnalyticsDB
-from utils.logging import get_logger
+from ..services.player_fetch import player_fetcher
+from ..utils.database import PlayerAnalyticsDB
+from ..utils.logging import get_logger
 
 
 logger = get_logger("PlayerAnalytics")

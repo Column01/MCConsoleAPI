@@ -8,14 +8,14 @@ from fastapi import FastAPI, HTTPException, Response, Security, status, Request
 from fastapi.responses import StreamingResponse, RedirectResponse
 from fastapi.security import APIKeyHeader, APIKeyQuery
 
-from services.player_fetch import player_fetcher
-from services.process import Process
-from services.server_analytics import ServerAnalytics
-from utils.config import TomlConfig
-from utils.database import ApiDB, PlayerAnalyticsDB
-from utils.logging import get_logger
-from utils.sse import *
-from utils.util import generate_time_message
+from .services.player_fetch import player_fetcher
+from .services.process import Process
+from .services.server_analytics import ServerAnalytics
+from .utils.config import TomlConfig
+from .utils.database import ApiDB, PlayerAnalyticsDB
+from .utils.logging import get_logger
+from .utils.sse import *
+from .utils.util import generate_time_message
 
 api_key_query = APIKeyQuery(name="api_key", auto_error=False)
 api_key_header = APIKeyHeader(name="x-api-key", auto_error=False)
@@ -574,16 +574,7 @@ class MCConsoleAPI:
         return {"servers": running_servers}
 
 
-async def main():
-    # Load the server config file
-    config = TomlConfig("api_config.toml")
-
-    # Setup the API and start the server
-    api = MCConsoleAPI(config)
-    await api.start_api_server()
-
-
-if __name__ == "__main__":
+def main():
     # parser = argparse.ArgumentParser(
     #     prog="MCConsoleAPI",
     #     description="A Python-Based async minecraft server wrapper that exposes HTTP endpoints for interaction with your server",
@@ -600,5 +591,18 @@ if __name__ == "__main__":
     # args = parser.parse_args()
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    main_task = asyncio.ensure_future(main())
+    main_task = asyncio.ensure_future(start_api())
     loop.run_until_complete(main_task)
+
+
+async def start_api():
+    # Load the server config file
+    config = TomlConfig("api_config.toml")
+
+    # Setup the API and start the server
+    api = MCConsoleAPI(config)
+    await api.start_api_server()
+
+
+if __name__ == "__main__":
+    main()

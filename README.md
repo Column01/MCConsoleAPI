@@ -27,17 +27,17 @@ This tool is just a backend to manage servers, a frontend or other tooling is re
 
 ### Pre-requisites
 
-1. Install [Python](https://www.python.org/downloads/) (tested on `3.12.3` but *in theory* `>=Python 3.8`)
+1. Install [Python](https://www.python.org/downloads/) for your OS (tested on `3.12.3` but *in theory* `>=Python 3.8`)
     - This project uses FastAPI which requires Python 3.8+
     - **Some type hinting in this code probably does not work on older python versions than what was tested!**
-2. Download the project
+2. Download the project to a logical installation location
     - You can do this by cloning the repo or clicking [this link](https://github.com/Column01/MCConsoleAPI/archive/refs/heads/master.zip)
     - If you downloaded it as a ZIP file, please extract it to a folder somewhere logical
-3. Install Requirements
+3. Install The Project
     - Open a command prompt or terminal
     - Change to the directory of the program: `cd /path/to/extracted/download/` (or `P:\ath\to\extracted\download\` on windows)
-    - Windows: `python -m pip install -r requirements.txt`
-    - Unix: `pip3 install -r requirements.txt`
+    - Windows: `python -m pip install .`
+    - Unix: `pip3 install -r .`
 
 ### Configuration
 

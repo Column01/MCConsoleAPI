@@ -2,8 +2,8 @@ import json
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from services.player_fetch import player_fetcher
-from utils.database import ServerAnalyticsDB
+from ..services.player_fetch import player_fetcher
+from ..utils.database import ServerAnalyticsDB
 
 
 class ServerAnalytics:
