@@ -5,7 +5,7 @@ class SSEEvent(str):
 
 
 class ServerOutput(SSEEvent):
-    """Sent when connecting and contains all previous and future console output lines.
+    """Sent when something is sent to the console output. When first connecting to SSE, up to 1000 previous console output lines are sent before the newest ones arrive.
     Typical Data Format:
         ServerOutput({"message": "A Console Line", "timestamp": "iso_format_timestamp"})
     """
@@ -17,7 +17,7 @@ class ServerOutput(SSEEvent):
 class ServerInput(SSEEvent):
     """Sent when something was sent to the server's STDIN (by another user or yourself)
     Typical Data Format:
-        ServerInput({"message": "The Sent command", "result": "The result (the next line recieved after sending it.)", "timestamp": "iso_format_timestamp"})
+        ServerInput({"message": "The Sent command", "result": "The result (the next line received after sending it.)", "timestamp": "iso_format_timestamp"})
     """
 
     def __new__(self, data):
