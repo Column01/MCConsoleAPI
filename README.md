@@ -37,7 +37,7 @@ This tool is just a backend to manage servers, a frontend or other tooling is re
     - Open a command prompt or terminal
     - Change to the directory of the program: `cd /path/to/extracted/download/` (or `P:\ath\to\extracted\download\` on windows)
     - Windows: `python -m pip install .`
-    - Unix: `pip3 install -r .`
+    - Unix: `pip3 install .`
 
 ### Configuration
 
