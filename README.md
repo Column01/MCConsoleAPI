@@ -73,23 +73,18 @@ Here's how to configure a server:
 
 ### Starting the API Server
 
-As of now, there isn't a convenient way to run the program other than from the main program folder.
+Once installed and configured, you can start the API can be using the following command:
 
-This will change in the future as development continues.
-
-For now, you can start the backend API server using this command:
-
-- Windows: `python main.py`
-- Linux: `python3 main.py`
+- `mcc-api`
 
 ### The Admin API key
 
 When you first run the program, you will see a section print out in the console that looks like this:
 
 ```txt
-================
+============================
 ADMIN API KEY: ADMIN-API-KEY
-================
+============================
 ```
 
 This is an important API key that has special privaledges (such as the ability to create new API keys).
