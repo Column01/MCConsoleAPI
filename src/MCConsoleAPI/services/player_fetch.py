@@ -8,10 +8,6 @@ logger = get_logger("PlayerFetcher")
 
 class PlayerFetcher:
     def __init__(self):
-        self.session = aiohttp.ClientSession(
-            headers={"User-Agent": "MCConsoleAPI by Column01"}
-        )
-
         self.url_template = "https://playerdb.co/api/player/minecraft/{username}"
         self.cache = {}
 
