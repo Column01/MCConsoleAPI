@@ -18,6 +18,7 @@ dependencies = [
     "fastapi",
     "toml",
     "aiohttp",
+    "uvicorn"
 ]
 
 [project.scripts]
